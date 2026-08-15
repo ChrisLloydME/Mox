@@ -242,7 +242,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.add, .torrent, .flexibleSpace, .details, .pause, .resume, .remove]
+        [.add, .torrent, .flexibleSpace, .pause, .resume, .details, .remove]
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         toolbarDefaultItemIdentifiers(toolbar) + [.space]

@@ -1,31 +1,33 @@
 **Comparison target**
 
-- Source visual truth: `/var/folders/gx/w1cq6f8j41sdgkfp0c5ndb_m0000gn/T/codex-clipboard-15e40e66-ac07-46fd-b96d-dd2d503f590a.png`
-- Source pixels: 874 x 160.
+- Source visual truth: `/var/folders/gx/w1cq6f8j41sdgkfp0c5ndb_m0000gn/T/codex-clipboard-19165640-f236-431d-b38b-e2b1ba6a2e2e.png`
+- Source pixels: 1394 x 706.
 - Implementation screenshot: unavailable.
-- Intended implementation viewport: native macOS window, 820 x 560 points; list rows are responsive to the available width.
-- State: active download with known progress, speed, and ETA.
+- Intended implementation viewport: native macOS About window, 780 x 400 points.
+- State: About Mox window open in the current system appearance.
 - Density normalization: unavailable because the implementation was not captured.
 
 **Findings**
 
-- Visual comparison is blocked. The request explicitly disallows launching the app to validate the UI with screenshots, so there is no rendered implementation artifact to compare with the reference.
-- Static review confirms that the row uses native AppKit controls for the file icon, filename, progress indicator, and detail text. The title is populated only from `task.displayName`; removal remains available through the toolbar and Delete command.
-- Fonts and typography, spacing and layout rhythm, dynamic system colors, rendered icon quality, and final copy truncation cannot be visually certified without a same-state implementation capture.
+- Visual comparison is blocked. The standing request disallows launching the app to validate UI with screenshots, so there is no rendered implementation artifact to compare with the reference.
+- Static review confirms the reference structure: application icon on the left; application name, Version, Build, copyright, and open-source notice on the right.
+- The reference email row and mail icon are intentionally omitted as requested.
+- Fonts and typography, spacing and layout rhythm, dynamic system colors, final application-icon rendering, and copy wrapping cannot be visually certified without a same-state implementation capture.
 
 **Full-view comparison evidence**
 
-- Source image opened and inspected.
+- Source image opened and inspected at 1394 x 706 pixels.
 - No implementation capture is available, so no combined visual comparison can be produced.
 
 **Focused region comparison evidence**
 
-- Not available for the same reason; the task row cannot be compared at matching scale without launching and capturing the app.
+- Not available because the About window cannot be captured without launching the app.
 
 **Implementation Checklist**
 
-- Native macOS build succeeds with code signing disabled.
-- Test targets compile through `build-for-testing`.
+- Native macOS build and test targets compile with code signing and the currently broken Icon Composer input excluded.
+- About menu item is connected to the custom window controller.
+- Name, Version, and Build values come from Bundle metadata.
 - App launch and screenshot capture intentionally omitted.
 
 **Comparison history**

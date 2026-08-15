@@ -12,6 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let settingsStore = SettingsStore()
     lazy var engineManager = EngineManager(settingsStore: settingsStore)
     lazy var taskStore = TaskStore { [weak engineManager] in engineManager?.client }
+    private var aboutController: AboutWindowController?
     private var preferencesController: PreferencesWindowController?
     private var terminationPending = false
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -64,12 +65,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         preferencesController?.window?.makeKeyAndOrderFront(sender)
     }
 
+    @objc func showAbout(_ sender: Any?) {
+        if aboutController == nil { aboutController = AboutWindowController() }
+        aboutController?.showWindow(sender)
+        aboutController?.window?.makeKeyAndOrderFront(sender)
+    }
+
     private func configureMenus() {
-        if let appMenu = NSApp.mainMenu?.items.first?.submenu,
-           let settingsItem = appMenu.item(withTitle: "Preferences…") ?? appMenu.item(withTitle: "Settings…") {
-            settingsItem.title = "Settings…"
-            settingsItem.target = self
-            settingsItem.action = #selector(showPreferences(_:))
+        if let appMenu = NSApp.mainMenu?.items.first?.submenu {
+            if let aboutItem = appMenu.item(withTitle: "About Mox") {
+                aboutItem.target = self
+                aboutItem.action = #selector(showAbout(_:))
+            }
+            if let settingsItem = appMenu.item(withTitle: "Preferences…") ?? appMenu.item(withTitle: "Settings…") {
+                settingsItem.title = "Settings…"
+                settingsItem.target = self
+                settingsItem.action = #selector(showPreferences(_:))
+            }
         }
         guard let fileMenu = NSApp.mainMenu?.item(withTitle: "File")?.submenu else { return }
         fileMenu.removeAllItems()

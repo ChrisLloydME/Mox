@@ -2,7 +2,7 @@ import Cocoa
 import Combine
 import SwiftUI
 
-final class PreferencesWindowController: NSWindowController {
+final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
     private let settingsStore: SettingsStore
     private let onSave: (AppSettings) throws -> Void
     private let model: PreferencesModel
@@ -20,14 +20,18 @@ final class PreferencesWindowController: NSWindowController {
         )
         window.title = "Settings"
         window.minSize = NSSize(width: 520, height: 560)
+        window.toolbarStyle = .unified
         window.center()
         super.init(window: window)
 
+        let toolbar = NSToolbar(identifier: .preferences)
+        toolbar.delegate = self
+        toolbar.displayMode = .labelOnly
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
         window.contentViewController = NSHostingController(rootView: PreferencesView(
             model: model,
-            chooseDirectory: { [weak self] in self?.chooseDirectory() },
-            cancel: { [weak self] in self?.close() },
-            save: { [weak self] in self?.save() }
+            chooseDirectory: { [weak self] in self?.chooseDirectory() }
         ))
     }
 
@@ -37,6 +41,39 @@ final class PreferencesWindowController: NSWindowController {
         model.load(settings: settingsStore.value)
         super.showWindow(sender)
     }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.flexibleSpace, .cancel, .save]
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(
+        _ toolbar: NSToolbar,
+        itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        switch identifier {
+        case .cancel:
+            item.label = "Cancel"
+            item.target = self
+            item.action = #selector(cancel(_:))
+        case .save:
+            item.label = "Save"
+            item.target = self
+            item.action = #selector(saveFromToolbar(_:))
+        default:
+            return nil
+        }
+        return item
+    }
+
+    @objc private func cancel(_ sender: Any?) { close() }
+
+    @objc private func saveFromToolbar(_ sender: Any?) { save() }
 
     private func chooseDirectory() {
         let panel = NSOpenPanel()
@@ -138,61 +175,58 @@ private final class PreferencesModel: ObservableObject {
 private struct PreferencesView: View {
     @ObservedObject var model: PreferencesModel
     let chooseDirectory: () -> Void
-    let cancel: () -> Void
-    let save: () -> Void
 
+    @ViewBuilder
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section("Downloads") {
-                    LabeledContent("Default Location") {
-                        HStack(spacing: 8) {
-                            Text(model.downloadDirectory)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .frame(maxWidth: 280, alignment: .trailing)
-                            Button("Choose…", action: chooseDirectory)
-                        }
-                    }
-                    valueField("Concurrent Downloads", text: $model.concurrentDownloads)
-                    valueField("Segments per Download", text: $model.segmentsPerDownload)
-                    valueField("Connections per Server", text: $model.connectionsPerServer)
-                }
-
-                Section("Bandwidth") {
-                    valueField("Download Speed Limit", text: $model.downloadSpeedLimit, width: 120)
-                    valueField("Upload Speed Limit", text: $model.uploadSpeedLimit, width: 120)
-                    Text("Use 0 for unlimited, or values such as 500K and 2M.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("BitTorrent") {
-                    Toggle("Enable DHT", isOn: $model.enableDHT)
-                    Toggle("Enable IPv6 DHT", isOn: $model.enableDHT6)
-                    Toggle("Peer Exchange", isOn: $model.enablePeerExchange)
-                    Toggle("Local Peer Discovery", isOn: $model.enableLocalPeerDiscovery)
-                    Toggle("Require Encryption", isOn: $model.requireEncryption)
-                    valueField("Seed Ratio", text: $model.seedRatio)
-                    valueField("Seed Time (minutes)", text: $model.seedTimeMinutes)
-                }
-            }
-            .formStyle(.grouped)
-            .toggleStyle(.switch)
-
-            Divider()
-
-            HStack(spacing: 8) {
-                Spacer()
-                Button("Cancel", action: cancel)
-                    .keyboardShortcut(.cancelAction)
-                Button("Save and Restart Engine", action: save)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(16)
+        if #available(macOS 26.0, *) {
+            settingsForm
+                .scrollEdgeEffectStyle(.soft, for: .top)
+                .scrollEdgeEffectHidden(true, for: .bottom)
+                .frame(minWidth: 520, minHeight: 560)
+        } else {
+            settingsForm
+                .frame(minWidth: 520, minHeight: 560)
         }
-        .frame(minWidth: 520, minHeight: 560)
+    }
+
+    private var settingsForm: some View {
+        Form {
+            Section("Downloads") {
+                LabeledContent("Default Location") {
+                    HStack(spacing: 8) {
+                        Text(model.downloadDirectory)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 280, alignment: .trailing)
+                        Button("Choose…", action: chooseDirectory)
+                    }
+                }
+                valueField("Concurrent Downloads", text: $model.concurrentDownloads)
+                valueField("Segments per Download", text: $model.segmentsPerDownload)
+                valueField("Connections per Server", text: $model.connectionsPerServer)
+            }
+
+            Section("Bandwidth") {
+                valueField("Download Speed Limit", text: $model.downloadSpeedLimit, width: 120)
+                valueField("Upload Speed Limit", text: $model.uploadSpeedLimit, width: 120)
+                Text("Use 0 for unlimited, or values such as 500K and 2M.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("BitTorrent") {
+                Toggle("Enable DHT", isOn: $model.enableDHT)
+                Toggle("Enable IPv6 DHT", isOn: $model.enableDHT6)
+                Toggle("Peer Exchange", isOn: $model.enablePeerExchange)
+                Toggle("Local Peer Discovery", isOn: $model.enableLocalPeerDiscovery)
+                Toggle("Require Encryption", isOn: $model.requireEncryption)
+                valueField("Seed Ratio", text: $model.seedRatio)
+                valueField("Seed Time (minutes)", text: $model.seedTimeMinutes)
+            }
+        }
+        .formStyle(.grouped)
+        .toggleStyle(.switch)
     }
 
     private func valueField(_ title: String, text: Binding<String>, width: CGFloat = 92) -> some View {
@@ -203,4 +237,13 @@ private struct PreferencesView: View {
                 .frame(width: width)
         }
     }
+}
+
+private extension NSToolbar.Identifier {
+    static let preferences = Self("MoxPreferencesToolbar")
+}
+
+private extension NSToolbarItem.Identifier {
+    static let cancel = Self("preferences.cancel")
+    static let save = Self("preferences.save")
 }

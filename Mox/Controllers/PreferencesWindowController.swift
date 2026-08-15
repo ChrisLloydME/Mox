@@ -27,6 +27,7 @@ final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
         let toolbar = NSToolbar(identifier: .preferences)
         toolbar.delegate = self
         toolbar.sizeMode = .regular
+        toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         window.toolbar = toolbar
         window.contentViewController = NSHostingController(rootView: PreferencesView(

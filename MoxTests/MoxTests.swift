@@ -13,6 +13,24 @@ struct MoxTests {
         controller.close()
     }
 
+    @Test @MainActor func aboutMenuOpensAboutWindow() throws {
+        let aboutItem = try #require(NSApp.mainMenu?.items.first?.submenu?.item(withTitle: "About Mox"))
+        let action = try #require(aboutItem.action)
+        #expect(NSApp.sendAction(action, to: aboutItem.target, from: aboutItem))
+        let aboutWindow = try #require(NSApp.windows.first { $0.title == "About Mox" })
+        #expect(aboutWindow.isVisible)
+        aboutWindow.close()
+    }
+
+    @Test @MainActor func dockReopenRestoresMainWindow() throws {
+        let delegate = try #require(NSApp.delegate as? AppDelegate)
+        let mainWindow = try #require(NSApp.windows.first { $0.contentViewController is ViewController })
+        mainWindow.orderOut(nil)
+        #expect(!mainWindow.isVisible)
+        #expect(delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false))
+        #expect(mainWindow.isVisible)
+    }
+
     @Test func taskDecodesAriaResponseAndCalculatesProgress() throws {
         let json = #"""
         {

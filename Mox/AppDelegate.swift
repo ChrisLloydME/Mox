@@ -13,14 +13,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var engineManager = EngineManager(settingsStore: settingsStore)
     lazy var taskStore = TaskStore { [weak engineManager] in engineManager?.client }
     private var aboutController: AboutWindowController?
+    private var mainWindow: NSWindow?
     private var preferencesController: PreferencesWindowController?
     private var terminationPending = false
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        mainWindow = NSApp.windows.first { $0.contentViewController is ViewController }
         guard !isRunningTests else { return }
         configureMenus()
-        if let controller = NSApp.windows.first?.contentViewController as? ViewController {
+        if let controller = mainWindow?.contentViewController as? ViewController {
             controller.configure(engineManager: engineManager, taskStore: taskStore, settingsStore: settingsStore)
         }
         Task {
@@ -48,6 +50,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            if mainWindow == nil {
+                mainWindow = sender.windows.first { $0.contentViewController is ViewController }
+            }
+            sender.activate(ignoringOtherApps: true)
+            mainWindow?.makeKeyAndOrderFront(nil)
+        }
+        return true
     }
 
     @objc func showPreferences(_ sender: Any?) {

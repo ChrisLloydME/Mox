@@ -1,8 +1,50 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Mox
 
 struct MoxTests {
+    @Test @MainActor func aboutMenuOpensAboutWindow() throws {
+        let aboutItem = try #require(NSApp.mainMenu?.items.first?.submenu?.item(withTitle: "About Mox"))
+        let action = try #require(aboutItem.action)
+        #expect(NSApp.sendAction(action, to: aboutItem.target, from: aboutItem))
+        let aboutWindow = try #require(NSApp.windows.first { $0.title == "About Mox" })
+        #expect(aboutWindow.isVisible)
+        aboutWindow.close()
+        #expect(!aboutWindow.isVisible)
+        #expect(NSApp.sendAction(action, to: aboutItem.target, from: aboutItem))
+        #expect(aboutWindow.isVisible)
+        aboutWindow.close()
+    }
+
+    @Test @MainActor func dockReopenRestoresMainWindow() throws {
+        let delegate = try #require(NSApp.delegate as? AppDelegate)
+        let mainWindow = try #require(NSApp.windows.first { $0.contentViewController is ViewController })
+        mainWindow.orderOut(nil)
+        #expect(!mainWindow.isVisible)
+        #expect(delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false))
+        #expect(mainWindow.isVisible)
+    }
+
+    @Test @MainActor func settingsCloseDoesNotPreventMainWindowReopen() throws {
+        let delegate = try #require(NSApp.delegate as? AppDelegate)
+        let mainWindow = try #require(NSApp.windows.first { $0.contentViewController is ViewController })
+        delegate.showPreferences(nil)
+        let settingsWindow = try #require(NSApp.windows.first { $0.title == "Settings" })
+        #expect(settingsWindow.isVisible)
+        settingsWindow.performClose(nil)
+        #expect(!settingsWindow.isVisible)
+        delegate.showPreferences(nil)
+        #expect(settingsWindow.isVisible)
+        settingsWindow.performClose(nil)
+        #expect(!settingsWindow.isVisible)
+
+        mainWindow.performClose(nil)
+        #expect(!mainWindow.isVisible)
+        #expect(delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: true))
+        #expect(mainWindow.isVisible)
+    }
+
     @Test func taskDecodesAriaResponseAndCalculatesProgress() throws {
         let json = #"""
         {

@@ -2,7 +2,7 @@ import Cocoa
 import Combine
 import SwiftUI
 
-final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
+final class PreferencesWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
     private let settingsStore: SettingsStore
     private let onSave: (AppSettings) throws -> Void
     private let model: PreferencesModel
@@ -19,10 +19,12 @@ final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
             defer: false
         )
         window.title = "Settings"
+        window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 520, height: 560)
         window.toolbarStyle = .unified
         window.center()
         super.init(window: window)
+        window.delegate = self
 
         let toolbar = NSToolbar(identifier: .preferences)
         toolbar.delegate = self
@@ -41,6 +43,15 @@ final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
     override func showWindow(_ sender: Any?) {
         model.load(settings: settingsStore.value)
         super.showWindow(sender)
+    }
+
+    override func close() {
+        window?.orderOut(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

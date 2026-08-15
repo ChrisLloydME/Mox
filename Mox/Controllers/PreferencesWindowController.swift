@@ -20,9 +20,8 @@ final class PreferencesWindowController: NSWindowController {
     init(settingsStore: SettingsStore, onSave: @escaping (AppSettings) throws -> Void) {
         self.settingsStore = settingsStore
         self.onSave = onSave
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 700), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 640), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Settings"
-        window.minSize = NSSize(width: 520, height: 560)
         window.center()
         super.init(window: window)
         window.contentViewController = buildController()
@@ -34,51 +33,48 @@ final class PreferencesWindowController: NSWindowController {
     private func buildController() -> NSViewController {
         let controller = NSViewController()
         let root = NSView()
-        let scroll = NSScrollView()
-        let document = NSView()
 
         let choose = NSButton(title: "Choose…", target: self, action: #selector(chooseDirectory(_:)))
-        choose.controlSize = .small
         directory.isEditable = false
-        directory.isBezeled = false
-        directory.drawsBackground = false
-        directory.alignment = .right
-        directory.textColor = .secondaryLabelColor
         directory.lineBreakMode = .byTruncatingMiddle
-        directory.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        directory.widthAnchor.constraint(equalToConstant: 260).isActive = true
         let destination = NSStackView(views: [directory, choose])
         destination.spacing = 8
 
         [concurrent, split, connections, downloadLimit, uploadLimit, seedRatio, seedTime].forEach {
             $0.alignment = .right
-            $0.controlSize = .regular
-            $0.widthAnchor.constraint(equalToConstant: 92).isActive = true
+        }
+        [concurrent, split, connections, seedRatio, seedTime].forEach {
+            $0.widthAnchor.constraint(equalToConstant: 88).isActive = true
+        }
+        [downloadLimit, uploadLimit].forEach {
+            $0.widthAnchor.constraint(equalToConstant: 120).isActive = true
         }
 
-        let downloads = settingsSection("Downloads", rows: [
-            settingRow("Default Location", control: destination),
-            settingRow("Concurrent Downloads", control: concurrent),
-            settingRow("Segments per Download", control: split),
-            settingRow("Connections per Server", control: connections)
+        let downloads = formSection("Downloads", rows: [
+            ("Default location:", destination),
+            ("Concurrent downloads:", concurrent),
+            ("Segments per download:", split),
+            ("Connections per server:", connections)
         ])
 
-        let bandwidth = settingsSection("Bandwidth", rows: [
-            settingRow("Download Speed Limit", control: downloadLimit),
-            settingRow("Upload Speed Limit", control: uploadLimit)
+        let bandwidth = formSection("Bandwidth", rows: [
+            ("Download speed limit:", downloadLimit),
+            ("Upload speed limit:", uploadLimit)
         ])
 
         let speedHint = NSTextField(wrappingLabelWithString: "Use 0 for unlimited, or values such as 500K and 2M.")
         speedHint.textColor = .secondaryLabelColor
         speedHint.font = .preferredFont(forTextStyle: .caption1)
 
-        let bitTorrent = settingsSection("BitTorrent", rows: [
-            settingRow("Enable DHT", control: dht),
-            settingRow("Enable IPv6 DHT", control: dht6),
-            settingRow("Peer Exchange", control: pex),
-            settingRow("Local Peer Discovery", control: lpd),
-            settingRow("Require Encryption", control: encryption),
-            settingRow("Seed Ratio", control: seedRatio),
-            settingRow("Seed Time (minutes)", control: seedTime)
+        let bitTorrent = formSection("BitTorrent", rows: [
+            ("DHT:", dht),
+            ("IPv6 DHT:", dht6),
+            ("Peer exchange:", pex),
+            ("Local peer discovery:", lpd),
+            ("Require encryption:", encryption),
+            ("Seed ratio:", seedRatio),
+            ("Seed time (minutes):", seedTime)
         ])
 
         let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel(_:)))
@@ -88,168 +84,49 @@ final class PreferencesWindowController: NSWindowController {
         buttons.alignment = .centerY
         buttons.spacing = 8
 
-        let bandwidthGroup = NSStackView(views: [bandwidth, speedHint])
-        bandwidthGroup.orientation = .vertical
-        bandwidthGroup.alignment = .leading
-        bandwidthGroup.spacing = 8
-
-        let content = NSStackView(views: [downloads, bandwidthGroup, bitTorrent])
+        let content = NSStackView(views: [downloads, bandwidth, speedHint, bitTorrent])
         content.orientation = .vertical
         content.alignment = .leading
-        content.spacing = 20
+        content.spacing = 16
 
-        [downloads, bandwidthGroup, bitTorrent].forEach {
-            $0.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
-        }
-        bandwidth.widthAnchor.constraint(equalTo: bandwidthGroup.widthAnchor).isActive = true
-        speedHint.widthAnchor.constraint(equalTo: bandwidthGroup.widthAnchor, constant: -12).isActive = true
-
-        document.addSubview(content)
+        root.addSubview(content)
+        root.addSubview(buttons)
         content.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 24),
-            content.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -24),
-            content.topAnchor.constraint(equalTo: document.topAnchor, constant: 22),
-            content.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24)
-        ])
-
-        scroll.documentView = document
-        scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.drawsBackground = false
-        document.translatesAutoresizingMaskIntoConstraints = false
-
-        let footer = NSVisualEffectView()
-        footer.material = .headerView
-        footer.blendingMode = .withinWindow
-        footer.state = .active
-        footer.addSubview(buttons)
         buttons.translatesAutoresizingMaskIntoConstraints = false
-
-        let separator = NSBox()
-        separator.boxType = .separator
-
-        [scroll, footer, separator].forEach(root.addSubview)
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        footer.translatesAutoresizingMaskIntoConstraints = false
-        separator.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            document.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
-            document.trailingAnchor.constraint(equalTo: scroll.contentView.trailingAnchor),
-            document.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
-            document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
-
-            scroll.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            scroll.topAnchor.constraint(equalTo: root.topAnchor),
-            scroll.bottomAnchor.constraint(equalTo: separator.topAnchor),
-
-            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            separator.bottomAnchor.constraint(equalTo: footer.topAnchor),
-
-            footer.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            footer.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            footer.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-            footer.heightAnchor.constraint(equalToConstant: 64),
-
-            buttons.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -20),
-            buttons.centerYAnchor.constraint(equalTo: footer.centerYAnchor)
+            content.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
+            content.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -24),
+            content.topAnchor.constraint(equalTo: root.topAnchor, constant: 22),
+            content.bottomAnchor.constraint(lessThanOrEqualTo: buttons.topAnchor, constant: -18),
+            buttons.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
+            buttons.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -20)
         ])
 
         controller.view = root
         return controller
     }
 
-    private func settingsSection(_ title: String, rows: [NSView]) -> NSStackView {
+    private func formSection(_ title: String, rows: [(String, NSView)]) -> NSStackView {
         let heading = NSTextField(labelWithString: title)
-        heading.font = .systemFont(ofSize: 13, weight: .semibold)
-        heading.textColor = .secondaryLabelColor
-        let headingContainer = NSView()
-        headingContainer.addSubview(heading)
-        heading.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            heading.leadingAnchor.constraint(equalTo: headingContainer.leadingAnchor, constant: 12),
-            heading.trailingAnchor.constraint(lessThanOrEqualTo: headingContainer.trailingAnchor),
-            heading.topAnchor.constraint(equalTo: headingContainer.topAnchor),
-            heading.bottomAnchor.constraint(equalTo: headingContainer.bottomAnchor)
-        ])
+        heading.font = .preferredFont(forTextStyle: .headline)
 
-        let card = NSBox()
-        card.boxType = .custom
-        card.cornerRadius = 12
-        card.borderWidth = 1
-        card.borderColor = .separatorColor
-        card.fillColor = .controlBackgroundColor
+        let grid = NSGridView(views: rows.map { row in
+            let (title, control) = row
+            control.setAccessibilityLabel(title.replacingOccurrences(of: ":", with: ""))
+            let label = NSTextField(labelWithString: title)
+            label.alignment = .right
+            return [label, control]
+        })
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 1).xPlacement = .leading
+        grid.rowSpacing = 9
+        grid.columnSpacing = 10
 
-        let rowStack = NSStackView()
-        rowStack.orientation = .vertical
-        rowStack.alignment = .leading
-        rowStack.spacing = 0
-        for (index, row) in rows.enumerated() {
-            if index > 0 {
-                let separator = settingSeparator()
-                rowStack.addArrangedSubview(separator)
-                separator.widthAnchor.constraint(equalTo: rowStack.widthAnchor).isActive = true
-            }
-            rowStack.addArrangedSubview(row)
-            row.widthAnchor.constraint(equalTo: rowStack.widthAnchor).isActive = true
-        }
-
-        card.addSubview(rowStack)
-        rowStack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            rowStack.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            rowStack.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            rowStack.topAnchor.constraint(equalTo: card.topAnchor),
-            rowStack.bottomAnchor.constraint(equalTo: card.bottomAnchor)
-        ])
-
-        let section = NSStackView(views: [headingContainer, card])
+        let section = NSStackView(views: [heading, grid])
         section.orientation = .vertical
         section.alignment = .leading
-        section.spacing = 7
-        headingContainer.widthAnchor.constraint(equalTo: section.widthAnchor).isActive = true
-        card.widthAnchor.constraint(equalTo: section.widthAnchor).isActive = true
+        section.spacing = 10
         return section
-    }
-
-    private func settingRow(_ title: String, control: NSView) -> NSView {
-        let row = NSView()
-        let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 14, weight: .regular)
-        label.lineBreakMode = .byTruncatingTail
-        control.setAccessibilityLabel(title)
-
-        row.addSubview(label)
-        row.addSubview(control)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        control.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            row.heightAnchor.constraint(equalToConstant: 48),
-            label.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
-            label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: control.leadingAnchor, constant: -16),
-            control.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
-            control.centerYAnchor.constraint(equalTo: row.centerYAnchor)
-        ])
-        return row
-    }
-
-    private func settingSeparator() -> NSView {
-        let container = NSView()
-        let separator = NSBox()
-        separator.boxType = .separator
-        container.addSubview(separator)
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(equalToConstant: 1),
-            container.widthAnchor.constraint(greaterThanOrEqualToConstant: 1),
-            separator.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            separator.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
-            separator.centerYAnchor.constraint(equalTo: container.centerYAnchor)
-        ])
-        return container
     }
 
     private func loadValues() {

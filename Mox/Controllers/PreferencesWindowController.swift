@@ -1,188 +1,82 @@
 import Cocoa
+import Combine
+import SwiftUI
 
 final class PreferencesWindowController: NSWindowController {
     private let settingsStore: SettingsStore
     private let onSave: (AppSettings) throws -> Void
-    private let directory = NSTextField()
-    private let concurrent = NSTextField()
-    private let split = NSTextField()
-    private let connections = NSTextField()
-    private let downloadLimit = NSTextField()
-    private let uploadLimit = NSTextField()
-    private let dht = NSSwitch()
-    private let dht6 = NSSwitch()
-    private let pex = NSSwitch()
-    private let lpd = NSSwitch()
-    private let encryption = NSSwitch()
-    private let seedRatio = NSTextField()
-    private let seedTime = NSTextField()
+    private let model: PreferencesModel
 
     init(settingsStore: SettingsStore, onSave: @escaping (AppSettings) throws -> Void) {
         self.settingsStore = settingsStore
         self.onSave = onSave
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 640), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        model = PreferencesModel(settings: settingsStore.value)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 580, height: 700),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
         window.title = "Settings"
+        window.minSize = NSSize(width: 520, height: 560)
         window.center()
         super.init(window: window)
-        window.contentViewController = buildController()
-        loadValues()
+
+        window.contentViewController = NSHostingController(rootView: PreferencesView(
+            model: model,
+            chooseDirectory: { [weak self] in self?.chooseDirectory() },
+            cancel: { [weak self] in self?.close() },
+            save: { [weak self] in self?.save() }
+        ))
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    private func buildController() -> NSViewController {
-        let controller = NSViewController()
-        let root = NSView()
-
-        let choose = NSButton(title: "Choose…", target: self, action: #selector(chooseDirectory(_:)))
-        directory.isEditable = false
-        directory.lineBreakMode = .byTruncatingMiddle
-        directory.widthAnchor.constraint(equalToConstant: 260).isActive = true
-        let destination = NSStackView(views: [directory, choose])
-        destination.spacing = 8
-
-        [concurrent, split, connections, downloadLimit, uploadLimit, seedRatio, seedTime].forEach {
-            $0.alignment = .right
-        }
-        [concurrent, split, connections, seedRatio, seedTime].forEach {
-            $0.widthAnchor.constraint(equalToConstant: 88).isActive = true
-        }
-        [downloadLimit, uploadLimit].forEach {
-            $0.widthAnchor.constraint(equalToConstant: 120).isActive = true
-        }
-
-        let downloads = formSection("Downloads", rows: [
-            ("Default location:", destination),
-            ("Concurrent downloads:", concurrent),
-            ("Segments per download:", split),
-            ("Connections per server:", connections)
-        ])
-
-        let bandwidth = formSection("Bandwidth", rows: [
-            ("Download speed limit:", downloadLimit),
-            ("Upload speed limit:", uploadLimit)
-        ])
-
-        let speedHint = NSTextField(wrappingLabelWithString: "Use 0 for unlimited, or values such as 500K and 2M.")
-        speedHint.textColor = .secondaryLabelColor
-        speedHint.font = .preferredFont(forTextStyle: .caption1)
-
-        let bitTorrent = formSection("BitTorrent", rows: [
-            ("DHT:", dht),
-            ("IPv6 DHT:", dht6),
-            ("Peer exchange:", pex),
-            ("Local peer discovery:", lpd),
-            ("Require encryption:", encryption),
-            ("Seed ratio:", seedRatio),
-            ("Seed time (minutes):", seedTime)
-        ])
-
-        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel(_:)))
-        let save = NSButton(title: "Save and Restart Engine", target: self, action: #selector(save(_:)))
-        save.keyEquivalent = "\r"
-        let buttons = NSStackView(views: [cancel, save])
-        buttons.alignment = .centerY
-        buttons.spacing = 8
-
-        let content = NSStackView(views: [downloads, bandwidth, speedHint, bitTorrent])
-        content.orientation = .vertical
-        content.alignment = .leading
-        content.spacing = 16
-
-        root.addSubview(content)
-        root.addSubview(buttons)
-        content.translatesAutoresizingMaskIntoConstraints = false
-        buttons.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
-            content.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -24),
-            content.topAnchor.constraint(equalTo: root.topAnchor, constant: 22),
-            content.bottomAnchor.constraint(lessThanOrEqualTo: buttons.topAnchor, constant: -18),
-            buttons.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
-            buttons.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -20)
-        ])
-
-        controller.view = root
-        return controller
+    override func showWindow(_ sender: Any?) {
+        model.load(settings: settingsStore.value)
+        super.showWindow(sender)
     }
 
-    private func formSection(_ title: String, rows: [(String, NSView)]) -> NSStackView {
-        let heading = NSTextField(labelWithString: title)
-        heading.font = .preferredFont(forTextStyle: .headline)
-
-        let grid = NSGridView(views: rows.map { row in
-            let (title, control) = row
-            control.setAccessibilityLabel(title.replacingOccurrences(of: ":", with: ""))
-            let label = NSTextField(labelWithString: title)
-            label.alignment = .right
-            return [label, control]
-        })
-        grid.column(at: 0).xPlacement = .trailing
-        grid.column(at: 1).xPlacement = .leading
-        grid.rowSpacing = 9
-        grid.columnSpacing = 10
-
-        let section = NSStackView(views: [heading, grid])
-        section.orientation = .vertical
-        section.alignment = .leading
-        section.spacing = 10
-        return section
-    }
-
-    private func loadValues() {
-        let value = settingsStore.value
-        directory.stringValue = value.downloadDirectory
-        concurrent.integerValue = value.maxConcurrentDownloads
-        split.integerValue = value.split
-        connections.integerValue = value.maxConnectionsPerServer
-        downloadLimit.stringValue = value.maxOverallDownloadLimit
-        uploadLimit.stringValue = value.maxOverallUploadLimit
-        dht.state = value.enableDHT ? .on : .off
-        dht6.state = value.enableDHT6 ? .on : .off
-        pex.state = value.enablePeerExchange ? .on : .off
-        lpd.state = value.enableLocalPeerDiscovery ? .on : .off
-        encryption.state = value.requireEncryption ? .on : .off
-        seedRatio.doubleValue = value.seedRatio
-        seedTime.integerValue = value.seedTimeMinutes
-    }
-
-    @objc private func chooseDirectory(_ sender: Any?) {
+    private func chooseDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
-        panel.directoryURL = URL(fileURLWithPath: directory.stringValue)
+        panel.directoryURL = URL(fileURLWithPath: model.downloadDirectory)
         panel.begin { [weak self] response in
-            if response == .OK, let path = panel.url?.path { self?.directory.stringValue = path }
+            if response == .OK, let path = panel.url?.path {
+                self?.model.downloadDirectory = path
+            }
         }
     }
 
-    @objc private func cancel(_ sender: Any?) { close() }
-
-    @objc private func save(_ sender: Any?) {
-        guard (1...100).contains(concurrent.integerValue),
-              (1...64).contains(split.integerValue),
-              (1...64).contains(connections.integerValue),
-              seedRatio.doubleValue >= 0,
-              seedTime.integerValue >= 0,
-              isValidSpeed(downloadLimit.stringValue),
-              isValidSpeed(uploadLimit.stringValue),
-              directory.stringValue.hasPrefix("/") else {
+    private func save() {
+        guard let concurrent = Int(model.concurrentDownloads), (1...100).contains(concurrent),
+              let split = Int(model.segmentsPerDownload), (1...64).contains(split),
+              let connections = Int(model.connectionsPerServer), (1...64).contains(connections),
+              let seedRatio = Double(model.seedRatio), seedRatio >= 0,
+              let seedTime = Int(model.seedTimeMinutes), seedTime >= 0,
+              isValidSpeed(model.downloadSpeedLimit),
+              isValidSpeed(model.uploadSpeedLimit),
+              model.downloadDirectory.hasPrefix("/") else {
             return showError("Check the destination and numeric values. Concurrency must be 1–100, connection values 1–64, and speed limits values such as 0, 500K, or 2M.")
         }
+
         var value = settingsStore.value
-        value.downloadDirectory = directory.stringValue
-        value.maxConcurrentDownloads = concurrent.integerValue
-        value.split = split.integerValue
-        value.maxConnectionsPerServer = connections.integerValue
-        value.maxOverallDownloadLimit = downloadLimit.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        value.maxOverallUploadLimit = uploadLimit.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        value.enableDHT = dht.state == .on
-        value.enableDHT6 = dht6.state == .on
-        value.enablePeerExchange = pex.state == .on
-        value.enableLocalPeerDiscovery = lpd.state == .on
-        value.requireEncryption = encryption.state == .on
-        value.seedRatio = seedRatio.doubleValue
-        value.seedTimeMinutes = seedTime.integerValue
+        value.downloadDirectory = model.downloadDirectory
+        value.maxConcurrentDownloads = concurrent
+        value.split = split
+        value.maxConnectionsPerServer = connections
+        value.maxOverallDownloadLimit = model.downloadSpeedLimit.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.maxOverallUploadLimit = model.uploadSpeedLimit.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.enableDHT = model.enableDHT
+        value.enableDHT6 = model.enableDHT6
+        value.enablePeerExchange = model.enablePeerExchange
+        value.enableLocalPeerDiscovery = model.enableLocalPeerDiscovery
+        value.requireEncryption = model.requireEncryption
+        value.seedRatio = seedRatio
+        value.seedTimeMinutes = seedTime
+
         do {
             try onSave(value)
             close()
@@ -200,6 +94,113 @@ final class PreferencesWindowController: NSWindowController {
     }
 
     private func isValidSpeed(_ value: String) -> Bool {
-        value.trimmingCharacters(in: .whitespacesAndNewlines).range(of: #"^(0|[1-9][0-9]*[KMGkmg]?)$"#, options: .regularExpression) != nil
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .range(of: #"^(0|[1-9][0-9]*[KMGkmg]?)$"#, options: .regularExpression) != nil
+    }
+}
+
+private final class PreferencesModel: ObservableObject {
+    @Published var downloadDirectory = ""
+    @Published var concurrentDownloads = ""
+    @Published var segmentsPerDownload = ""
+    @Published var connectionsPerServer = ""
+    @Published var downloadSpeedLimit = ""
+    @Published var uploadSpeedLimit = ""
+    @Published var enableDHT = false
+    @Published var enableDHT6 = false
+    @Published var enablePeerExchange = false
+    @Published var enableLocalPeerDiscovery = false
+    @Published var requireEncryption = false
+    @Published var seedRatio = ""
+    @Published var seedTimeMinutes = ""
+
+    init(settings: AppSettings) {
+        load(settings: settings)
+    }
+
+    func load(settings: AppSettings) {
+        downloadDirectory = settings.downloadDirectory
+        concurrentDownloads = String(settings.maxConcurrentDownloads)
+        segmentsPerDownload = String(settings.split)
+        connectionsPerServer = String(settings.maxConnectionsPerServer)
+        downloadSpeedLimit = settings.maxOverallDownloadLimit
+        uploadSpeedLimit = settings.maxOverallUploadLimit
+        enableDHT = settings.enableDHT
+        enableDHT6 = settings.enableDHT6
+        enablePeerExchange = settings.enablePeerExchange
+        enableLocalPeerDiscovery = settings.enableLocalPeerDiscovery
+        requireEncryption = settings.requireEncryption
+        seedRatio = String(settings.seedRatio)
+        seedTimeMinutes = String(settings.seedTimeMinutes)
+    }
+}
+
+private struct PreferencesView: View {
+    @ObservedObject var model: PreferencesModel
+    let chooseDirectory: () -> Void
+    let cancel: () -> Void
+    let save: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section("Downloads") {
+                    LabeledContent("Default Location") {
+                        HStack(spacing: 8) {
+                            Text(model.downloadDirectory)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: 280, alignment: .trailing)
+                            Button("Choose…", action: chooseDirectory)
+                        }
+                    }
+                    valueField("Concurrent Downloads", text: $model.concurrentDownloads)
+                    valueField("Segments per Download", text: $model.segmentsPerDownload)
+                    valueField("Connections per Server", text: $model.connectionsPerServer)
+                }
+
+                Section("Bandwidth") {
+                    valueField("Download Speed Limit", text: $model.downloadSpeedLimit, width: 120)
+                    valueField("Upload Speed Limit", text: $model.uploadSpeedLimit, width: 120)
+                    Text("Use 0 for unlimited, or values such as 500K and 2M.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("BitTorrent") {
+                    Toggle("Enable DHT", isOn: $model.enableDHT)
+                    Toggle("Enable IPv6 DHT", isOn: $model.enableDHT6)
+                    Toggle("Peer Exchange", isOn: $model.enablePeerExchange)
+                    Toggle("Local Peer Discovery", isOn: $model.enableLocalPeerDiscovery)
+                    Toggle("Require Encryption", isOn: $model.requireEncryption)
+                    valueField("Seed Ratio", text: $model.seedRatio)
+                    valueField("Seed Time (minutes)", text: $model.seedTimeMinutes)
+                }
+            }
+            .formStyle(.grouped)
+            .toggleStyle(.switch)
+
+            Divider()
+
+            HStack(spacing: 8) {
+                Spacer()
+                Button("Cancel", action: cancel)
+                    .keyboardShortcut(.cancelAction)
+                Button("Save and Restart Engine", action: save)
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+        }
+        .frame(minWidth: 520, minHeight: 560)
+    }
+
+    private func valueField(_ title: String, text: Binding<String>, width: CGFloat = 92) -> some View {
+        LabeledContent(title) {
+            TextField(title, text: text)
+                .labelsHidden()
+                .multilineTextAlignment(.trailing)
+                .frame(width: width)
+        }
     }
 }

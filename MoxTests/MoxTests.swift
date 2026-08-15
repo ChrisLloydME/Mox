@@ -4,6 +4,13 @@ import Testing
 @testable import Mox
 
 struct MoxTests {
+    @Test @MainActor func toolbarActionsUsePauseResumeDetailsRemoveOrder() {
+        let controller = ViewController()
+        let toolbar = NSToolbar(identifier: "ToolbarOrderTest")
+        let identifiers = controller.toolbarDefaultItemIdentifiers(toolbar)
+        #expect(identifiers.suffix(4).map(\.rawValue) == ["pause", "resume", "details", "remove"])
+    }
+
     @Test @MainActor func aboutMenuOpensAboutWindow() throws {
         let aboutItem = try #require(NSApp.mainMenu?.items.first?.submenu?.item(withTitle: "About Mox"))
         let action = try #require(aboutItem.action)

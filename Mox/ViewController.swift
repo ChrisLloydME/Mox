@@ -6,6 +6,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private var taskStore: TaskStore!
     private var settingsStore: SettingsStore!
     private var category: TaskCategory = .downloading
+    private var didConfigureWindow = false
     private var visibleTasks: [Aria2Task] { taskStore?.tasks.filter { $0.category == category } ?? [] }
 
     private let tableView = NSTableView()
@@ -33,6 +34,8 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     override func viewDidAppear() {
         super.viewDidAppear()
+        guard !didConfigureWindow else { return }
+        didConfigureWindow = true
         guard let window = view.window else { return }
         window.title = "Mox"
         window.setContentSize(NSSize(width: 980, height: 620))
@@ -182,6 +185,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     @IBAction func newDocument(_ sender: Any?) { addDownload(sender) }
     @IBAction func openDocument(_ sender: Any?) { addTorrent(sender) }
+    @IBAction func delete(_ sender: Any?) { removeSelected(sender) }
 
     @objc private func addDownload(_ sender: Any?) {
         guard engineManager?.state == .ready else { return showError(RPCError(code: -30, message: "The download engine is not ready.")) }

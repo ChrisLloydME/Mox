@@ -16,8 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminationPending = false
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        NSApp.mainMenu?.items.first?.submenu?.item(withTitle: "Preferences…")?.target = self
-        NSApp.mainMenu?.items.first?.submenu?.item(withTitle: "Preferences…")?.action = #selector(showPreferences(_:))
+        configureMenus()
         if let controller = NSApp.windows.first?.contentViewController as? ViewController {
             controller.configure(engineManager: engineManager, taskStore: taskStore, settingsStore: settingsStore)
         }
@@ -59,5 +58,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         preferencesController?.showWindow(sender)
         preferencesController?.window?.makeKeyAndOrderFront(sender)
+    }
+
+    private func configureMenus() {
+        if let appMenu = NSApp.mainMenu?.items.first?.submenu,
+           let settingsItem = appMenu.item(withTitle: "Preferences…") ?? appMenu.item(withTitle: "Settings…") {
+            settingsItem.title = "Settings…"
+            settingsItem.target = self
+            settingsItem.action = #selector(showPreferences(_:))
+        }
+        guard let fileMenu = NSApp.mainMenu?.item(withTitle: "File")?.submenu else { return }
+        fileMenu.removeAllItems()
+        let add = NSMenuItem(title: "New Download…", action: #selector(ViewController.newDocument(_:)), keyEquivalent: "n")
+        let torrent = NSMenuItem(title: "Add Torrent…", action: #selector(ViewController.openDocument(_:)), keyEquivalent: "o")
+        let close = NSMenuItem(title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        fileMenu.items = [add, torrent, .separator(), close]
     }
 }

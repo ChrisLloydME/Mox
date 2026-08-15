@@ -47,7 +47,7 @@ final class EngineManager {
                 "--enable-rpc=true", "--rpc-listen-all=false", "--rpc-listen-port=29100",
                 "--rpc-secret=\(settings.rpcSecret)", "--rpc-allow-origin-all=false",
                 "--save-session=\(sessionFile.path)", "--save-session-interval=10",
-                "--auto-save-interval=10", "--continue=true", "--force-save=true",
+                "--auto-save-interval=10", "--continue=true",
                 "--log=\(logFile.path)", "--log-level=notice", "--quiet=true"
             ]
             if fileManager.fileExists(atPath: sessionFile.path) { arguments.append("--input-file=\(sessionFile.path)") }

@@ -140,7 +140,7 @@ final class AddDownloadSheet: NSObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.directoryURL = URL(fileURLWithPath: directoryField.stringValue)
-        panel.beginSheetModal(for: sheet) { [weak self] response in
+        panel.begin { [weak self] response in
             if response == .OK, let path = panel.url?.path { self?.directoryField.stringValue = path }
         }
     }

@@ -210,7 +210,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "torrent") ?? .data]
         panel.allowsMultipleSelection = false
-        panel.beginSheetModal(for: view.window!) { [weak self] response in
+        panel.begin { [weak self] response in
             guard response == .OK, let self, let url = panel.url else { return }
             Task {
                 do { try await self.taskStore.addTorrent(url: url, directory: self.settingsStore.value.downloadDirectory) }

@@ -121,7 +121,7 @@ final class PreferencesWindowController: NSWindowController {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.directoryURL = URL(fileURLWithPath: directory.stringValue)
-        panel.beginSheetModal(for: window!) { [weak self] response in
+        panel.begin { [weak self] response in
             if response == .OK, let path = panel.url?.path { self?.directory.stringValue = path }
         }
     }

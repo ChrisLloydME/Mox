@@ -14,8 +14,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var taskStore = TaskStore { [weak engineManager] in engineManager?.client }
     private var preferencesController: PreferencesWindowController?
     private var terminationPending = false
+    private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        guard !isRunningTests else { return }
         configureMenus()
         if let controller = NSApp.windows.first?.contentViewController as? ViewController {
             controller.configure(engineManager: engineManager, taskStore: taskStore, settingsStore: settingsStore)
@@ -27,10 +29,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
+        guard !isRunningTests else { return }
         taskStore.stopPolling()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !isRunningTests else { return .terminateNow }
         guard !terminationPending else { return .terminateLater }
         terminationPending = true
         taskStore.stopPolling()

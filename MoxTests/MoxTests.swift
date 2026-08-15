@@ -41,5 +41,7 @@ struct MoxTests {
         #expect(options["max-concurrent-downloads"] == "8")
         #expect(options["split"] == "12")
         #expect(options["enable-dht6"] == "false")
+        #expect(settings.rpcPort == 29_100)
+        #expect(!settings.rpcSecret.isEmpty)
     }
 }

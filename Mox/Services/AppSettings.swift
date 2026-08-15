@@ -15,11 +15,12 @@ struct AppSettings: Codable, Equatable {
     var seedRatio = 2.0
     var seedTimeMinutes = 2_880
     var rpcSecret: String
+    var rpcPort: Int?
 
     static func defaults(fileManager: FileManager = .default) -> AppSettings {
         let downloads = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
             ?? NSHomeDirectory() + "/Downloads"
-        return AppSettings(downloadDirectory: downloads, rpcSecret: UUID().uuidString.replacingOccurrences(of: "-", with: ""))
+        return AppSettings(downloadDirectory: downloads, rpcSecret: UUID().uuidString.replacingOccurrences(of: "-", with: ""), rpcPort: 29_100)
     }
 
     var engineOptions: [String: String] {
@@ -55,6 +56,8 @@ final class SettingsStore {
             value = decoded
         } else {
             value = .defaults(fileManager: fileManager)
+            try? fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if let data = try? JSONEncoder.pretty.encode(value) { try? data.write(to: fileURL, options: .atomic) }
         }
     }
 

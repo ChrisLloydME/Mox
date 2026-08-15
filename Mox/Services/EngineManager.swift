@@ -27,7 +27,12 @@ final class EngineManager {
         guard process == nil else { return }
         state = .starting
         do {
-            let settings = settingsStore.value
+            var settings = settingsStore.value
+            let port = try availableRPCPort(preferred: settings.rpcPort ?? 29_100)
+            if settings.rpcPort != port {
+                settings.rpcPort = port
+                try settingsStore.save(settings)
+            }
             try fileManager.createDirectory(atPath: settings.downloadDirectory, withIntermediateDirectories: true)
             let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
                 .appendingPathComponent("Mox", isDirectory: true)
@@ -44,7 +49,7 @@ final class EngineManager {
                 arguments.append("--conf-path=\(configuration.path)")
             }
             arguments += [
-                "--enable-rpc=true", "--rpc-listen-all=false", "--rpc-listen-port=29100",
+                "--enable-rpc=true", "--rpc-listen-all=false", "--rpc-listen-port=\(port)",
                 "--rpc-secret=\(settings.rpcSecret)", "--rpc-allow-origin-all=false",
                 "--save-session=\(sessionFile.path)", "--save-session-interval=10",
                 "--auto-save-interval=10", "--continue=true",
@@ -57,7 +62,7 @@ final class EngineManager {
             child.standardError = FileHandle.nullDevice
             try child.run()
             process = child
-            let rpc = Aria2Client(secret: settings.rpcSecret)
+            let rpc = Aria2Client(port: port, secret: settings.rpcSecret)
             try await rpc.waitUntilReady()
             client = rpc
             state = .ready
@@ -97,5 +102,31 @@ final class EngineManager {
         }
         process = nil
         client = nil
+    }
+
+    private func availableRPCPort(preferred: Int) throws -> Int {
+        let candidates = [preferred] + Array(29_100...29_200).filter { $0 != preferred }
+        guard let port = candidates.first(where: isPortAvailable) else {
+            throw RPCError(code: -11, message: "No local port is available for the download engine.")
+        }
+        return port
+    }
+
+    private func isPortAvailable(_ port: Int) -> Bool {
+        let descriptor = socket(AF_INET, SOCK_STREAM, 0)
+        guard descriptor >= 0 else { return false }
+        defer { close(descriptor) }
+        var address = sockaddr_in(
+            sin_len: UInt8(MemoryLayout<sockaddr_in>.size),
+            sin_family: sa_family_t(AF_INET),
+            sin_port: in_port_t(port).bigEndian,
+            sin_addr: in_addr(s_addr: inet_addr("127.0.0.1")),
+            sin_zero: (0, 0, 0, 0, 0, 0, 0, 0)
+        )
+        return withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) == 0
+            }
+        }
     }
 }

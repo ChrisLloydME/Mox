@@ -1,8 +1,18 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Mox
 
 struct MoxTests {
+    @Test @MainActor func aboutWindowCanBeConstructed() {
+        let controller = AboutWindowController(bundle: .main)
+        #expect(controller.window?.title == "About Mox")
+        #expect(controller.window?.contentViewController != nil)
+        #expect(controller.window?.frame.size.width == 780)
+        #expect(controller.window?.frame.size.height == 400)
+        controller.close()
+    }
+
     @Test func taskDecodesAriaResponseAndCalculatesProgress() throws {
         let json = #"""
         {

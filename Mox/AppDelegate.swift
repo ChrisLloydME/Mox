@@ -68,15 +68,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showAbout(_ sender: Any?) {
         if aboutController == nil { aboutController = AboutWindowController() }
         aboutController?.showWindow(sender)
-        aboutController?.window?.makeKeyAndOrderFront(sender)
+        NSApp.activate(ignoringOtherApps: true)
+        aboutController?.window?.orderFrontRegardless()
     }
 
     private func configureMenus() {
         if let appMenu = NSApp.mainMenu?.items.first?.submenu {
-            if let aboutItem = appMenu.item(withTitle: "About Mox") {
-                aboutItem.target = self
-                aboutItem.action = #selector(showAbout(_:))
-            }
             if let settingsItem = appMenu.item(withTitle: "Preferences…") ?? appMenu.item(withTitle: "Settings…") {
                 settingsItem.title = "Settings…"
                 settingsItem.target = self

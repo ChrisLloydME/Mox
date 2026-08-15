@@ -26,7 +26,7 @@ final class AboutWindowController: NSWindowController {
         let controller = NSViewController()
         let root = NSView()
 
-        let iconView = NSImageView(image: NSApp.applicationIconImage)
+        let iconView = NSImageView(image: NSWorkspace.shared.icon(forFile: bundle.bundlePath))
         iconView.imageScaling = .scaleProportionallyUpOrDown
         iconView.setAccessibilityLabel("Mox application icon")
 

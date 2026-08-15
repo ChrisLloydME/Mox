@@ -51,16 +51,16 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private func buildInterface() {
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.allowsMultipleSelection = false
-        tableView.rowHeight = 44
-        tableView.intercellSpacing = NSSize(width: 8, height: 1)
+        tableView.headerView = nil
+        tableView.rowHeight = 82
+        tableView.intercellSpacing = NSSize(width: 0, height: 2)
+        tableView.backgroundColor = .windowBackgroundColor
         tableView.delegate = self
         tableView.dataSource = self
         tableView.doubleAction = #selector(showDetails(_:))
-        addColumn("name", title: "Name", width: 310, minWidth: 180)
-        addColumn("status", title: "Status", width: 100, minWidth: 80)
-        addColumn("progress", title: "Progress", width: 190, minWidth: 130)
-        addColumn("speed", title: "Speed", width: 100, minWidth: 80)
-        addColumn("eta", title: "ETA", width: 80, minWidth: 70)
+        let taskColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("task"))
+        taskColumn.resizingMask = .autoresizingMask
+        tableView.addTableColumn(taskColumn)
 
         let scrollView = NSScrollView()
         scrollView.documentView = tableView
@@ -120,15 +120,6 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         view = rootView
     }
 
-    private func addColumn(_ id: String, title: String, width: CGFloat, minWidth: CGFloat) {
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
-        column.title = title
-        column.width = width
-        column.minWidth = minWidth
-        if id == "name" { column.resizingMask = .autoresizingMask }
-        tableView.addTableColumn(column)
-    }
-
     private func reload() {
         guard isViewLoaded else { return }
         tableView.reloadData()
@@ -163,37 +154,32 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let task = visibleTasks[row]
-        let id = tableColumn?.identifier.rawValue ?? ""
-        if id == "progress" {
-            let progress = NSProgressIndicator()
-            progress.isIndeterminate = task.totalBytes == 0 && task.status == "active"
-            progress.controlSize = .small
-            progress.doubleValue = task.progress * 100
-            if progress.isIndeterminate { progress.startAnimation(nil) }
-            let label = NSTextField(labelWithString: task.totalBytes > 0 ? "\(Int(task.progress * 100))% of \(DisplayFormat.size(task.totalBytes))" : task.status.capitalized)
-            label.font = .preferredFont(forTextStyle: .caption1)
-            let stack = NSStackView(views: [progress, label])
-            stack.orientation = .vertical
-            stack.spacing = 2
-            stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 3, right: 0)
-            return stack
-        }
-        let value: String
-        switch id {
-        case "status": value = task.category.title
-        case "speed": value = task.status == "active" ? DisplayFormat.speed(task.bytesPerSecond) : "—"
-        case "eta": value = task.status == "active" ? DisplayFormat.duration(task.eta) : "—"
-        default: value = task.displayName
-        }
-        let field = NSTextField(labelWithString: value)
-        field.lineBreakMode = .byTruncatingMiddle
-        field.toolTip = value
-        return field
+        let cell = DownloadTaskCellView()
+        cell.configure(
+            task: task,
+            row: row,
+            isSelected: task.gid == selectedTaskID,
+            target: self,
+            removeAction: #selector(removeTaskFromRow(_:))
+        )
+        return cell
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         let row = tableView.selectedRow
         selectedTaskID = row >= 0 && row < visibleTasks.count ? visibleTasks[row].gid : nil
+        let visibleRows = tableView.rows(in: tableView.visibleRect)
+        for visibleRow in visibleRows.location..<(visibleRows.location + visibleRows.length) {
+            guard let cell = tableView.view(atColumn: 0, row: visibleRow, makeIfNecessary: false) as? DownloadTaskCellView else { continue }
+            let task = visibleTasks[visibleRow]
+            cell.configure(
+                task: task,
+                row: visibleRow,
+                isSelected: task.gid == selectedTaskID,
+                target: self,
+                removeAction: #selector(removeTaskFromRow(_:))
+            )
+        }
         if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
             if let selectedTask {
                 detailController.task = selectedTask
@@ -260,6 +246,12 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
                 catch { self.showError(error) }
             }
         }
+    }
+
+    @objc private func removeTaskFromRow(_ sender: NSButton) {
+        guard sender.tag >= 0, sender.tag < visibleTasks.count else { return }
+        tableView.selectRowIndexes(IndexSet(integer: sender.tag), byExtendingSelection: false)
+        removeSelected(sender)
     }
 
     private var selectedTask: Aria2Task? {

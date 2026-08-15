@@ -13,7 +13,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private let emptyLabel = NSTextField(labelWithString: "No downloads")
     private let statusLabel = NSTextField(labelWithString: "Starting download engine…")
     private var addDownloadSheet: AddDownloadSheet?
-    private var detailPopover: NSPopover?
+    private var detailSheet: TaskDetailSheet?
 
     func configure(engineManager: EngineManager, taskStore: TaskStore, settingsStore: SettingsStore) {
         self.engineManager = engineManager
@@ -130,8 +130,8 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         } else {
             selectedTaskID = nil
             tableView.deselectAll(nil)
-            detailPopover?.close()
-            detailPopover = nil
+            detailSheet?.close()
+            detailSheet = nil
         }
         emptyLabel.stringValue = "No downloads"
         emptyLabel.isHidden = !visibleTasks.isEmpty
@@ -144,10 +144,8 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         default: statusLabel.stringValue = "Download engine stopped"
         }
         if let error = taskStore?.lastError { statusLabel.stringValue = "Engine communication failed: \(error)" }
-        if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
-            detailController.client = engineManager?.client
-            detailController.task = selectedTask
-        }
+        detailSheet?.client = engineManager?.client
+        detailSheet?.task = selectedTask
         view.window?.toolbar?.validateVisibleItems()
     }
 
@@ -175,12 +173,12 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
                 isSelected: task.gid == selectedTaskID
             )
         }
-        if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
+        if let detailSheet {
             if let selectedTask {
-                detailController.task = selectedTask
+                detailSheet.task = selectedTask
             } else {
-                detailPopover?.close()
-                detailPopover = nil
+                detailSheet.close()
+                self.detailSheet = nil
             }
         }
         view.window?.toolbar?.validateVisibleItems()
@@ -260,26 +258,15 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     @objc private func showDetails(_ sender: Any?) {
         guard let task = selectedTask else { return }
+        guard detailSheet == nil, let window = view.window else { return }
 
-        if detailPopover?.isShown == true {
-            detailPopover?.close()
-            detailPopover = nil
-            return
+        let sheet = TaskDetailSheet()
+        sheet.client = engineManager?.client
+        sheet.task = task
+        detailSheet = sheet
+        sheet.begin(for: window) { [weak self] in
+            self?.detailSheet = nil
         }
-
-        let controller = TaskDetailViewController()
-        controller.client = engineManager?.client
-        controller.task = task
-        let popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = true
-        popover.contentSize = NSSize(width: 520, height: 420)
-        popover.contentViewController = controller
-        detailPopover = popover
-
-        let row = tableView.selectedRow
-        let anchor = row >= 0 ? tableView.rect(ofRow: row) : tableView.visibleRect
-        popover.show(relativeTo: anchor, of: tableView, preferredEdge: .maxX)
     }
 
     private func showError(_ error: Error) {

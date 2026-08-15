@@ -49,7 +49,7 @@ final class TaskStore {
         }
     }
 
-    func add(text: String, directory: String) async throws {
+    func add(text: String, directory: String, split: Int) async throws {
         let values = text.components(separatedBy: .newlines)
             .flatMap { $0.components(separatedBy: CharacterSet.whitespaces) }
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -59,8 +59,9 @@ final class TaskStore {
             guard let scheme = URLComponents(string: value)?.scheme?.lowercased() else { return false }
             return ["http", "https", "magnet"].contains(scheme)
         }) else { throw RPCError(code: -21, message: "Only HTTP, HTTPS, and Magnet links are supported in this version.") }
+        guard (1...64).contains(split) else { throw RPCError(code: -24, message: "Thread count must be between 1 and 64.") }
         guard let client = clientProvider() else { throw RPCError(code: -22, message: "The download engine is not ready.") }
-        for value in values { _ = try await client.add(uris: [value], directory: directory) }
+        for value in values { _ = try await client.add(uris: [value], directory: directory, split: split) }
         await refresh()
     }
 

@@ -57,8 +57,8 @@ actor Aria2Client {
         return try await active + waiting + stopped
     }
 
-    func add(uris: [String], directory: String) async throws -> String {
-        try await call("addUri", parameters: [uris, ["dir": directory]])
+    func add(uris: [String], directory: String, split: Int) async throws -> String {
+        try await call("addUri", parameters: [uris, ["dir": directory, "split": String(split)]])
     }
 
     func addTorrent(data: Data, directory: String) async throws -> String {

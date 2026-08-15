@@ -12,6 +12,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private let tableView = NSTableView()
     private let emptyLabel = NSTextField(labelWithString: "No downloads")
     private let statusLabel = NSTextField(labelWithString: "Starting download engine…")
+    private var addDownloadSheet: AddDownloadSheet?
     private var detailPopover: NSPopover?
 
     func configure(engineManager: EngineManager, taskStore: TaskStore, settingsStore: SettingsStore) {
@@ -210,11 +211,17 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     @objc private func addDownload(_ sender: Any?) {
         guard engineManager?.state == .ready else { return showError(RPCError(code: -30, message: "The download engine is not ready.")) }
-        let sheet = AddDownloadSheet(defaultDirectory: settingsStore.value.downloadDirectory)
-        sheet.begin(for: view.window!) { [weak self] text, directory in
-            guard let self, let text, let directory else { return }
+        let sheet = AddDownloadSheet(
+            defaultDirectory: settingsStore.value.downloadDirectory,
+            defaultSplit: settingsStore.value.split
+        )
+        addDownloadSheet = sheet
+        sheet.begin(for: view.window!) { [weak self] text, directory, split in
+            guard let self else { return }
+            self.addDownloadSheet = nil
+            guard let text, let directory, let split else { return }
             Task {
-                do { try await self.taskStore.add(text: text, directory: directory) }
+                do { try await self.taskStore.add(text: text, directory: directory, split: split) }
                 catch { self.showError(error) }
             }
         }

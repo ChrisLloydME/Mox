@@ -14,6 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var taskStore = TaskStore { [weak engineManager] in engineManager?.client }
     private var mainWindow: NSWindow?
     private var preferencesController: PreferencesWindowController?
+    private var aboutController: AboutWindowController?
     private var terminationPending = false
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
@@ -89,23 +90,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        let bundle = Bundle.main
-        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
-        let configuredCopyright = (bundle.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let copyright = configuredCopyright.flatMap { $0.isEmpty ? nil : $0 }
-            ?? "Copyright © 2026 Christopher Lloyd."
+        if aboutController == nil {
+            aboutController = AboutWindowController()
+        }
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "Mox",
-            .applicationIcon: NSWorkspace.shared.icon(forFile: bundle.bundlePath),
-            .applicationVersion: version,
-            .version: build,
-            .credits: NSAttributedString(
-                string: "\(copyright)\n\nMox includes third-party open-source software."
-            )
-        ])
+        aboutController?.showWindow(sender)
+        aboutController?.window?.makeKeyAndOrderFront(sender)
     }
 
     private func configureMenus() {

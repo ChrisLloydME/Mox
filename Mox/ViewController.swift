@@ -97,12 +97,26 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
             statusBar.heightAnchor.constraint(equalToConstant: 28)
         ])
 
-        let stack = NSStackView(views: [listContainer, separator, statusBar])
-        stack.orientation = .vertical
-        stack.spacing = 0
-        listContainer.setContentHuggingPriority(.defaultLow, for: .vertical)
-        stack.setHuggingPriority(.defaultLow, for: .vertical)
-        view = stack
+        let rootView = NSView()
+        rootView.addSubview(listContainer)
+        rootView.addSubview(separator)
+        rootView.addSubview(statusBar)
+        listContainer.translatesAutoresizingMaskIntoConstraints = false
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        statusBar.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            listContainer.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            listContainer.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            listContainer.topAnchor.constraint(equalTo: rootView.topAnchor),
+            listContainer.bottomAnchor.constraint(equalTo: separator.topAnchor),
+            separator.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            separator.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            statusBar.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            statusBar.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            statusBar.bottomAnchor.constraint(equalTo: rootView.bottomAnchor)
+        ])
+        view = rootView
     }
 
     private func addColumn(_ id: String, title: String, width: CGFloat, minWidth: CGFloat) {

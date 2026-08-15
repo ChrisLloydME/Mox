@@ -82,13 +82,13 @@ final class AboutWindowController: NSWindowController, NSWindowDelegate {
 
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 30),
-            iconView.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 12),
+            iconView.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 0),
             iconView.widthAnchor.constraint(equalToConstant: 174),
             iconView.heightAnchor.constraint(equalToConstant: 174),
 
             information.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 28),
             information.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
-            information.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 10),
+            information.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 0),
             nameLabel.widthAnchor.constraint(equalTo: information.widthAnchor),
             copyrightLabel.widthAnchor.constraint(equalTo: information.widthAnchor)
         ])

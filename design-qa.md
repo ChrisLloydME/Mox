@@ -19,7 +19,7 @@
 **Required fidelity surfaces**
 
 - Fonts and typography: native system fonts, 58 pt medium application name, 17 pt semibold metadata, and 16 pt semibold supporting copy. Rendered weight, antialiasing, and wrapping are unverified.
-- Spacing and layout rhythm: 660 x 354 frame, 30 pt leading margin, 174 pt icon, 28 pt icon-to-copy gap, 24 pt trailing margin, 18 pt stack spacing, and 30 pt metadata-to-copy gap. The content centers are shifted 10–12 pt upward for optical balance beneath the title bar. Rendered alignment is unverified.
+- Spacing and layout rhythm: 660 x 354 frame, 30 pt leading margin, 174 pt icon, 28 pt icon-to-copy gap, 24 pt trailing margin, 18 pt stack spacing, and 30 pt metadata-to-copy gap. The icon and information centers are both shifted 25 pt toward the title bar to center the visible composition within the full window frame. Rendered alignment is unverified.
 - Colors and visual tokens: system label, secondary-label, and tertiary-label colors adapt to appearance; rendered contrast is unverified.
 - Image quality and asset fidelity: the real Mox application icon is loaded from the app bundle and scaled proportionally; rendered sharpness is unverified.
 - Copy and content: Mox, Version, Build, copyright, and open-source notice are present; email is omitted. The supporting copy has an intentional line break between the copyright and open-source notice.
@@ -46,5 +46,6 @@
 - Iteration 2: the horizontal custom window was restored with persistent ownership and hide-on-close lifecycle behavior. Post-fix visual evidence is unavailable because implementation capture is prohibited.
 - Iteration 3: the window was reduced from 880 x 420 to 700 x 354 points using the reference's Retina-scale dimensions; horizontal margins were tightened and the supporting copy now breaks after “Mox includes.” Post-fix visual evidence remains unavailable for the same reason.
 - Iteration 4: the window was narrowed to 660 points, the trailing margin reduced to 24 points, and the content shifted upward 8 points for optical centering. Verification was explicitly skipped by request.
+- Iteration 5: the 1320 x 708 Retina capture showed the visible content center approximately 30 pixels below the 354-point window midpoint. Both content centers were therefore set to the same +25-point AppKit offset, adding 13–15 points of upward correction. Post-fix capture is unavailable.
 
 final result: blocked

@@ -25,6 +25,9 @@ nonisolated struct Aria2Task: Codable, Identifiable, Hashable {
     let downloadSpeed: String
     let uploadSpeed: String?
     let connections: String?
+    let bitfield: String?
+    let numPieces: String?
+    let pieceLength: String?
     let dir: String
     let files: [Aria2File]
     let bittorrent: BitTorrentInfo?
@@ -40,6 +43,22 @@ nonisolated struct Aria2Task: Codable, Identifiable, Hashable {
     var totalBytes: Int64 { Int64(totalLength) ?? 0 }
     var completedBytes: Int64 { Int64(completedLength) ?? 0 }
     var bytesPerSecond: Int64 { Int64(downloadSpeed) ?? 0 }
+    var pieceStates: [Bool]? {
+        guard let bitfield, !bitfield.isEmpty else { return nil }
+        var states: [Bool] = []
+        states.reserveCapacity(bitfield.count * 4)
+        for character in bitfield {
+            guard let value = Int(String(character), radix: 16) else { return nil }
+            states.append((value & 0b1000) != 0)
+            states.append((value & 0b0100) != 0)
+            states.append((value & 0b0010) != 0)
+            states.append((value & 0b0001) != 0)
+        }
+        if let count = numPieces.flatMap(Int.init), count < states.count {
+            states.removeLast(states.count - count)
+        }
+        return states
+    }
     var progress: Double { totalBytes > 0 ? min(1, Double(completedBytes) / Double(totalBytes)) : 0 }
     var eta: TimeInterval? {
         let remaining = totalBytes - completedBytes

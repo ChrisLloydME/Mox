@@ -30,6 +30,17 @@ struct MoxTests {
         #expect(try task(status: "error").category == .failed)
     }
 
+    @Test func taskDecodesPieceBitfieldMostSignificantBitFirst() throws {
+        let json = #"""
+        {
+          "gid":"pieces", "status":"active", "totalLength":"80", "completedLength":"40",
+          "downloadSpeed":"1", "dir":"/tmp", "files":[], "bitfield":"a8", "numPieces":"6"
+        }
+        """#.data(using: .utf8)!
+        let task = try JSONDecoder().decode(Aria2Task.self, from: json)
+        #expect(task.pieceStates == [true, false, true, false, true, false])
+    }
+
     @Test func settingsProduceExpectedEngineOptions() {
         var settings = AppSettings.defaults()
         settings.downloadDirectory = "/Downloads"

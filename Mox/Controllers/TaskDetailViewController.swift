@@ -7,6 +7,11 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
     private let titleLabel = NSTextField(labelWithString: "No Selection")
     private let summaryLabel = NSTextField(wrappingLabelWithString: "Select a task to see its details.")
     private let locationLabel = NSTextField(wrappingLabelWithString: "")
+    private let pieceProgressView = PieceProgressView()
+    private let progressIndicator = NSProgressIndicator()
+    private let progressLabel = NSTextField(labelWithString: "0%")
+    private let transferLabel = NSTextField(labelWithString: "")
+    private let activityLabel = NSTextField(labelWithString: "")
     private let filesTable = NSTableView()
     private let peersTable = NSTableView()
     private let trackersView = NSTextView()
@@ -36,7 +41,9 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
         trackersView.font = .preferredFont(forTextStyle: .body)
         trackersView.textContainerInset = NSSize(width: 8, height: 8)
 
+        let overview = buildOverview()
         let tabs = NSTabView()
+        tabs.addTabViewItem(item(label: "Overview", view: overview))
         tabs.addTabViewItem(item(label: "Files", view: filesScroll))
         tabs.addTabViewItem(item(label: "Peers", view: peersScroll))
         tabs.addTabViewItem(item(label: "Trackers", view: trackerScroll))
@@ -64,6 +71,46 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
         ])
         preferredContentSize = NSSize(width: 520, height: 420)
         view = rootView
+    }
+
+    private func buildOverview() -> NSView {
+        let root = NSView()
+        pieceProgressView.setAccessibilityLabel("Download pieces")
+
+        progressIndicator.style = .bar
+        progressIndicator.minValue = 0
+        progressIndicator.maxValue = 100
+        progressLabel.alignment = .right
+        progressLabel.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        progressLabel.setContentHuggingPriority(.required, for: .horizontal)
+
+        let progressTitle = NSTextField(labelWithString: "Progress:")
+        progressTitle.setContentHuggingPriority(.required, for: .horizontal)
+        let progressRow = NSStackView(views: [progressTitle, progressIndicator, progressLabel])
+        progressRow.spacing = 10
+        progressRow.alignment = .centerY
+
+        transferLabel.alignment = .center
+        transferLabel.textColor = .secondaryLabelColor
+        activityLabel.alignment = .center
+        activityLabel.textColor = .secondaryLabelColor
+
+        let content = NSStackView(views: [pieceProgressView, progressRow, transferLabel, activityLabel])
+        content.orientation = .vertical
+        content.spacing = 14
+        root.addSubview(content)
+        content.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
+            content.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
+            content.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
+            content.bottomAnchor.constraint(lessThanOrEqualTo: root.bottomAnchor, constant: -16),
+            pieceProgressView.heightAnchor.constraint(equalToConstant: 118),
+            progressRow.widthAnchor.constraint(equalTo: content.widthAnchor),
+            transferLabel.widthAnchor.constraint(equalTo: content.widthAnchor),
+            activityLabel.widthAnchor.constraint(equalTo: content.widthAnchor)
+        ])
+        return root
     }
 
     private func configure(table: NSTableView, columns: [(String, String, CGFloat)]) {
@@ -102,6 +149,11 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
             titleLabel.stringValue = "No Selection"
             summaryLabel.stringValue = "Select a task to see its details."
             locationLabel.stringValue = ""
+            pieceProgressView.update(states: nil)
+            progressIndicator.doubleValue = 0
+            progressLabel.stringValue = "0%"
+            transferLabel.stringValue = ""
+            activityLabel.stringValue = ""
             files = []
             peers = []
             trackersView.string = ""
@@ -114,6 +166,32 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
         let error = task.errorMessage.map { "\n\($0)" } ?? ""
         summaryLabel.stringValue = "\(task.status.capitalized) • \(progress)\(error)"
         locationLabel.stringValue = task.dir
+        pieceProgressView.update(states: task.pieceStates)
+        let percent = task.status == "complete" ? 100 : Int(task.progress * 100)
+        progressIndicator.isIndeterminate = task.totalBytes == 0 && task.status == "active"
+        progressIndicator.doubleValue = Double(percent)
+        if progressIndicator.isIndeterminate {
+            progressIndicator.startAnimation(nil)
+        } else {
+            progressIndicator.stopAnimation(nil)
+        }
+        progressLabel.stringValue = "\(percent)%"
+        if task.totalBytes > 0 {
+            var transfer = "\(DisplayFormat.size(task.completedBytes)) / \(DisplayFormat.size(task.totalBytes))"
+            if let eta = task.eta { transfer += "   •   \(DisplayFormat.duration(eta)) remaining" }
+            transferLabel.stringValue = transfer
+        } else {
+            transferLabel.stringValue = task.status.capitalized
+        }
+        let connections = task.connections ?? "0"
+        let seeders = task.numSeeders ?? "—"
+        let pieceSize: String
+        if let bytes = task.pieceLength.flatMap(Int64.init) {
+            pieceSize = DisplayFormat.size(bytes)
+        } else {
+            pieceSize = "—"
+        }
+        activityLabel.stringValue = "Connections: \(connections)   •   Seeders: \(seeders)   •   Piece size: \(pieceSize)"
         files = task.files
         let trackers = task.bittorrent?.announceList?.flatMap { $0 } ?? []
         trackersView.string = trackers.isEmpty ? "No tracker information is available for this task." : trackers.joined(separator: "\n")

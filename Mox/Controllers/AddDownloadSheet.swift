@@ -1,14 +1,15 @@
 import Cocoa
+import Combine
+import SwiftUI
 
 final class AddDownloadSheet: NSObject {
     private let sheet: NSWindow
     private let input = NSTextView()
-    private let directoryField = NSTextField()
-    private let splitField = NSTextField()
-    private let splitStepper = NSStepper()
+    private let optionsModel: AddDownloadOptionsModel
     private var completion: ((String?, String?, Int?) -> Void)?
 
     init(defaultDirectory: String, defaultSplit: Int) {
+        optionsModel = AddDownloadOptionsModel(directory: defaultDirectory, threads: defaultSplit)
         sheet = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
             styleMask: [.titled],
@@ -44,39 +45,10 @@ final class AddDownloadSheet: NSObject {
         input.isAutomaticDashSubstitutionEnabled = false
         input.textContainerInset = NSSize(width: 6, height: 6)
 
-        directoryField.stringValue = defaultDirectory
-        directoryField.isEditable = false
-        directoryField.lineBreakMode = .byTruncatingMiddle
-        directoryField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let choose = NSButton(title: "Choose…", target: self, action: #selector(chooseDirectory(_:)))
-        choose.setContentHuggingPriority(.required, for: .horizontal)
-        let destinationRow = NSStackView(views: [directoryField, choose])
-        destinationRow.spacing = 8
-
-        let splitValue = min(64, max(1, defaultSplit))
-        splitField.integerValue = splitValue
-        splitField.alignment = .right
-        splitField.formatter = integerFormatter()
-        splitField.target = self
-        splitField.action = #selector(editSplit(_:))
-        splitStepper.minValue = 1
-        splitStepper.maxValue = 64
-        splitStepper.increment = 1
-        splitStepper.integerValue = splitValue
-        splitStepper.target = self
-        splitStepper.action = #selector(stepSplit(_:))
-        let splitRow = NSStackView(views: [splitField, splitStepper])
-        splitRow.spacing = 4
-        splitField.widthAnchor.constraint(equalToConstant: 54).isActive = true
-
-        let form = NSGridView(views: [
-            [fieldLabel("Save to:"), destinationRow],
-            [fieldLabel("Threads:"), splitRow]
-        ])
-        form.column(at: 0).xPlacement = .trailing
-        form.column(at: 1).xPlacement = .fill
-        form.rowSpacing = 10
-        form.columnSpacing = 10
+        let options = NSHostingView(rootView: AddDownloadOptionsView(
+            model: optionsModel,
+            chooseDirectory: { [weak self] in self?.chooseDirectory() }
+        ))
 
         let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
@@ -85,7 +57,7 @@ final class AddDownloadSheet: NSObject {
         let buttons = NSStackView(views: [cancel, add])
         buttons.spacing = 8
 
-        [instructions, inputScroll, form, buttons].forEach {
+        [instructions, inputScroll, options, buttons].forEach {
             root.addSubview($0)
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
@@ -99,60 +71,35 @@ final class AddDownloadSheet: NSObject {
             inputScroll.topAnchor.constraint(equalTo: instructions.bottomAnchor, constant: 14),
             inputScroll.heightAnchor.constraint(equalToConstant: 170),
 
-            form.leadingAnchor.constraint(equalTo: instructions.leadingAnchor),
-            form.trailingAnchor.constraint(equalTo: instructions.trailingAnchor),
-            form.topAnchor.constraint(equalTo: inputScroll.bottomAnchor, constant: 16),
+            options.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            options.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            options.topAnchor.constraint(equalTo: inputScroll.bottomAnchor, constant: 6),
+            options.heightAnchor.constraint(equalToConstant: 132),
 
             buttons.trailingAnchor.constraint(equalTo: instructions.trailingAnchor),
-            buttons.topAnchor.constraint(greaterThanOrEqualTo: form.bottomAnchor, constant: 18),
+            buttons.topAnchor.constraint(greaterThanOrEqualTo: options.bottomAnchor, constant: 10),
             buttons.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -20)
         ])
         return root
     }
 
-    private func fieldLabel(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
-        label.alignment = .right
-        return label
-    }
-
-    private func integerFormatter() -> NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .none
-        formatter.minimum = 1
-        formatter.maximum = 64
-        formatter.allowsFloats = false
-        return formatter
-    }
-
-    @objc private func stepSplit(_ sender: NSStepper) {
-        splitField.integerValue = sender.integerValue
-    }
-
-    @objc private func editSplit(_ sender: NSTextField) {
-        let value = min(64, max(1, sender.integerValue))
-        sender.integerValue = value
-        splitStepper.integerValue = value
-    }
-
-    @objc private func chooseDirectory(_ sender: Any?) {
+    private func chooseDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.directoryURL = URL(fileURLWithPath: directoryField.stringValue)
+        panel.directoryURL = URL(fileURLWithPath: optionsModel.directory)
         panel.begin { [weak self] response in
-            if response == .OK, let path = panel.url?.path { self?.directoryField.stringValue = path }
+            if response == .OK, let path = panel.url?.path { self?.optionsModel.directory = path }
         }
     }
 
     @objc private func add(_ sender: Any?) {
-        let split = splitField.integerValue
+        let split = optionsModel.threads
         guard (1...64).contains(split) else {
             NSSound.beep()
-            sheet.makeFirstResponder(splitField)
             return
         }
-        finish(response: .OK, text: input.string, directory: directoryField.stringValue, split: split)
+        finish(response: .OK, text: input.string, directory: optionsModel.directory, split: split)
     }
 
     @objc private func cancel(_ sender: Any?) {
@@ -164,5 +111,47 @@ final class AddDownloadSheet: NSObject {
         parent.endSheet(sheet, returnCode: response)
         completion?(text, directory, split)
         completion = nil
+    }
+}
+
+private final class AddDownloadOptionsModel: ObservableObject {
+    @Published var directory: String
+    @Published var threads: Int
+
+    init(directory: String, threads: Int) {
+        self.directory = directory
+        self.threads = min(64, max(1, threads))
+    }
+}
+
+private struct AddDownloadOptionsView: View {
+    @ObservedObject var model: AddDownloadOptionsModel
+    let chooseDirectory: () -> Void
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Save to") {
+                    HStack(spacing: 8) {
+                        TextField("Save to", text: $model.directory)
+                            .labelsHidden()
+                            .frame(minWidth: 260)
+                        Button("Choose…", action: chooseDirectory)
+                    }
+                }
+                LabeledContent("Threads") {
+                    HStack(spacing: 6) {
+                        TextField("Threads", value: $model.threads, format: .number)
+                            .labelsHidden()
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 58)
+                        Stepper("Threads", value: $model.threads, in: 1...64)
+                            .labelsHidden()
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
     }
 }

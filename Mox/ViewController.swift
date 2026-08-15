@@ -11,7 +11,6 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     private let tableView = NSTableView()
     private let emptyLabel = NSTextField(labelWithString: "No downloads")
-    private let statusLabel = NSTextField(labelWithString: "Starting download engine…")
     private var addDownloadSheet: AddDownloadSheet?
     private var detailSheet: TaskDetailSheet?
 
@@ -86,37 +85,14 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
             emptyLabel.centerYAnchor.constraint(equalTo: listContainer.centerYAnchor)
         ])
 
-        let separator = NSBox()
-        separator.boxType = .separator
-        let statusBar = NSView()
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.font = .preferredFont(forTextStyle: .caption1)
-        statusBar.addSubview(statusLabel)
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            statusLabel.leadingAnchor.constraint(equalTo: statusBar.leadingAnchor, constant: 12),
-            statusLabel.centerYAnchor.constraint(equalTo: statusBar.centerYAnchor),
-            statusBar.heightAnchor.constraint(equalToConstant: 28)
-        ])
-
         let rootView = NSView()
         rootView.addSubview(listContainer)
-        rootView.addSubview(separator)
-        rootView.addSubview(statusBar)
         listContainer.translatesAutoresizingMaskIntoConstraints = false
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        statusBar.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             listContainer.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             listContainer.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             listContainer.topAnchor.constraint(equalTo: rootView.topAnchor),
-            listContainer.bottomAnchor.constraint(equalTo: separator.topAnchor),
-            separator.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            separator.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            separator.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
-            statusBar.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            statusBar.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            statusBar.bottomAnchor.constraint(equalTo: rootView.bottomAnchor)
+            listContainer.bottomAnchor.constraint(equalTo: rootView.bottomAnchor)
         ])
         view = rootView
     }
@@ -135,15 +111,6 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         }
         emptyLabel.stringValue = "No downloads"
         emptyLabel.isHidden = !visibleTasks.isEmpty
-        switch engineManager?.state {
-        case .ready:
-            let down = taskStore.tasks.filter { $0.category == .downloading }.reduce(0) { $0 + $1.bytesPerSecond }
-            statusLabel.stringValue = "\(taskStore.tasks.count) tasks   •   \(DisplayFormat.speed(down))"
-        case .starting: statusLabel.stringValue = "Starting download engine…"
-        case .failed(let message): statusLabel.stringValue = "Engine unavailable: \(message)"
-        default: statusLabel.stringValue = "Download engine stopped"
-        }
-        if let error = taskStore?.lastError { statusLabel.stringValue = "Engine communication failed: \(error)" }
         detailSheet?.client = engineManager?.client
         detailSheet?.task = selectedTask
         view.window?.toolbar?.validateVisibleItems()

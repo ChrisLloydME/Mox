@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 enum EngineState: Equatable {
     case stopped
@@ -13,6 +14,7 @@ final class EngineManager {
     var onStateChange: ((EngineState) -> Void)?
     private(set) var client: Aria2Client?
     private var process: Process?
+    private var monitorTask: Task<Void, Never>?
     private let fileManager: FileManager
     private let settingsStore: SettingsStore
 
@@ -37,7 +39,11 @@ final class EngineManager {
             }
             let child = Process()
             child.executableURL = executable
-            var arguments = [
+            var arguments: [String] = []
+            if let configuration = Bundle.main.url(forResource: "aria2", withExtension: "conf") {
+                arguments.append("--conf-path=\(configuration.path)")
+            }
+            arguments += [
                 "--enable-rpc=true", "--rpc-listen-all=false", "--rpc-listen-port=29100",
                 "--rpc-secret=\(settings.rpcSecret)", "--rpc-allow-origin-all=false",
                 "--save-session=\(sessionFile.path)", "--save-session-interval=10",
@@ -55,6 +61,13 @@ final class EngineManager {
             try await rpc.waitUntilReady()
             client = rpc
             state = .ready
+            monitorTask = Task { [weak self, weak child] in
+                while let child, child.isRunning, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(250)) }
+                guard let self, !Task.isCancelled, self.process === child, self.state == .ready else { return }
+                self.process = nil
+                self.client = nil
+                self.state = .failed("The download engine exited unexpectedly.")
+            }
         } catch {
             process?.terminate()
             process = nil
@@ -70,18 +83,17 @@ final class EngineManager {
 
     func stop() async {
         state = .stopped
+        monitorTask?.cancel()
+        monitorTask = nil
         if let client {
             try? await client.saveSession()
             try? await client.shutdown()
         }
         if let process, process.isRunning {
-            process.terminate()
-            await withCheckedContinuation { continuation in
-                DispatchQueue.global().async {
-                    process.waitUntilExit()
-                    continuation.resume()
-                }
-            }
+            for _ in 0..<20 where process.isRunning { try? await Task.sleep(for: .milliseconds(100)) }
+            if process.isRunning { kill(process.processIdentifier, SIGTERM) }
+            for _ in 0..<20 where process.isRunning { try? await Task.sleep(for: .milliseconds(100)) }
+            if process.isRunning { kill(process.processIdentifier, SIGKILL) }
         }
         process = nil
         client = nil

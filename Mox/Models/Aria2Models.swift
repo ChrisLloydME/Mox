@@ -59,7 +59,7 @@ nonisolated struct Aria2Task: Codable, Identifiable, Hashable {
         }
     }
     var canPause: Bool { status == "active" || status == "waiting" }
-    var canResume: Bool { status == "paused" || status == "error" }
+    var canResume: Bool { status == "paused" }
 }
 
 nonisolated struct Aria2File: Codable, Hashable {

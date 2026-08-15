@@ -10,9 +10,13 @@ struct MoxTests {
         #expect(NSApp.sendAction(action, to: aboutItem.target, from: aboutItem))
         let aboutWindow = try #require(NSApp.windows.first { $0.title == "About Mox" })
         #expect(aboutWindow.isVisible)
-        #expect(aboutWindow.contentLayoutRect.size == NSSize(width: 880, height: 420))
+        #expect(aboutWindow.contentLayoutRect.size == NSSize(width: 700, height: 354))
         #expect(aboutWindow.contentView?.findView(withIdentifier: "about.applicationName") != nil)
         #expect(aboutWindow.contentView?.findView(withIdentifier: "about.applicationIcon") != nil)
+        let copyright = try #require(
+            aboutWindow.contentView?.findView(withIdentifier: "about.copyright") as? NSTextField
+        )
+        #expect(copyright.stringValue.contains("Mox includes\nthird-party"))
         aboutWindow.close()
         #expect(!aboutWindow.isVisible)
         #expect(NSApp.sendAction(action, to: aboutItem.target, from: aboutItem))

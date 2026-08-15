@@ -5,15 +5,13 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private var engineManager: EngineManager!
     private var taskStore: TaskStore!
     private var settingsStore: SettingsStore!
-    private var category: TaskCategory = .downloading
     private var didConfigureWindow = false
-    private var visibleTasks: [Aria2Task] { taskStore?.tasks.filter { $0.category == category } ?? [] }
+    private var visibleTasks: [Aria2Task] { taskStore?.tasks ?? [] }
 
     private let tableView = NSTableView()
     private let emptyLabel = NSTextField(labelWithString: "No downloads")
     private let statusLabel = NSTextField(labelWithString: "Starting download engine…")
-    private let detailController = TaskDetailViewController()
-    private let categoryControl = NSSegmentedControl(labels: TaskCategory.allCases.map(\.title), trackingMode: .selectOne, target: nil, action: nil)
+    private var detailPopover: NSPopover?
 
     func configure(engineManager: EngineManager, taskStore: TaskStore, settingsStore: SettingsStore) {
         self.engineManager = engineManager
@@ -38,8 +36,8 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         didConfigureWindow = true
         guard let window = view.window else { return }
         window.title = "Mox"
-        window.setContentSize(NSSize(width: 980, height: 620))
-        window.minSize = NSSize(width: 760, height: 460)
+        window.setContentSize(NSSize(width: 820, height: 560))
+        window.minSize = NSSize(width: 640, height: 420)
         let toolbar = NSToolbar(identifier: "MoxToolbar")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
@@ -49,16 +47,18 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     }
 
     private func buildInterface() {
-        tableView.usesAlternatingRowBackgroundColors = true
+        tableView.usesAlternatingRowBackgroundColors = false
         tableView.allowsMultipleSelection = false
-        tableView.rowHeight = 34
+        tableView.rowHeight = 44
+        tableView.intercellSpacing = NSSize(width: 8, height: 1)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.doubleAction = #selector(showSelectedInFinder(_:))
-        addColumn("name", title: "Name", width: 290)
-        addColumn("progress", title: "Progress", width: 170)
-        addColumn("speed", title: "Speed", width: 100)
-        addColumn("eta", title: "ETA", width: 80)
+        tableView.doubleAction = #selector(showDetails(_:))
+        addColumn("name", title: "Name", width: 310, minWidth: 180)
+        addColumn("status", title: "Status", width: 100, minWidth: 80)
+        addColumn("progress", title: "Progress", width: 190, minWidth: 130)
+        addColumn("speed", title: "Speed", width: 100, minWidth: 80)
+        addColumn("eta", title: "ETA", width: 80, minWidth: 70)
 
         let scrollView = NSScrollView()
         scrollView.documentView = tableView
@@ -83,15 +83,6 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
             emptyLabel.centerYAnchor.constraint(equalTo: listContainer.centerYAnchor)
         ])
 
-        addChild(detailController)
-        let splitView = NSSplitView()
-        splitView.isVertical = true
-        splitView.dividerStyle = .thin
-        splitView.addArrangedSubview(listContainer)
-        splitView.addArrangedSubview(detailController.view)
-        listContainer.widthAnchor.constraint(greaterThanOrEqualToConstant: 430).isActive = true
-        detailController.view.widthAnchor.constraint(greaterThanOrEqualToConstant: 280).isActive = true
-
         let separator = NSBox()
         separator.boxType = .separator
         let statusBar = NSView()
@@ -105,25 +96,27 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
             statusBar.heightAnchor.constraint(equalToConstant: 28)
         ])
 
-        let stack = NSStackView(views: [splitView, separator, statusBar])
+        let stack = NSStackView(views: [listContainer, separator, statusBar])
         stack.orientation = .vertical
         stack.spacing = 0
+        listContainer.setContentHuggingPriority(.defaultLow, for: .vertical)
         stack.setHuggingPriority(.defaultLow, for: .vertical)
         view = stack
     }
 
-    private func addColumn(_ id: String, title: String, width: CGFloat) {
+    private func addColumn(_ id: String, title: String, width: CGFloat, minWidth: CGFloat) {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
         column.title = title
         column.width = width
-        column.minWidth = 60
+        column.minWidth = minWidth
+        if id == "name" { column.resizingMask = .autoresizingMask }
         tableView.addTableColumn(column)
     }
 
     private func reload() {
         guard isViewLoaded else { return }
         tableView.reloadData()
-        emptyLabel.stringValue = "No \(category.title.lowercased()) downloads"
+        emptyLabel.stringValue = "No downloads"
         emptyLabel.isHidden = !visibleTasks.isEmpty
         switch engineManager?.state {
         case .ready:
@@ -134,9 +127,9 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         default: statusLabel.stringValue = "Download engine stopped"
         }
         if let error = taskStore?.lastError { statusLabel.stringValue = "Engine communication failed: \(error)" }
-        if let task = selectedTask {
+        if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
             detailController.client = engineManager?.client
-            detailController.task = task
+            detailController.task = selectedTask
         }
         view.window?.toolbar?.validateVisibleItems()
     }
@@ -149,6 +142,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         if id == "progress" {
             let progress = NSProgressIndicator()
             progress.isIndeterminate = task.totalBytes == 0 && task.status == "active"
+            progress.controlSize = .small
             progress.doubleValue = task.progress * 100
             if progress.isIndeterminate { progress.startAnimation(nil) }
             let label = NSTextField(labelWithString: task.totalBytes > 0 ? "\(Int(task.progress * 100))% of \(DisplayFormat.size(task.totalBytes))" : task.status.capitalized)
@@ -156,10 +150,12 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
             let stack = NSStackView(views: [progress, label])
             stack.orientation = .vertical
             stack.spacing = 2
+            stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 3, right: 0)
             return stack
         }
         let value: String
         switch id {
+        case "status": value = task.category.title
         case "speed": value = task.status == "active" ? DisplayFormat.speed(task.bytesPerSecond) : "—"
         case "eta": value = task.status == "active" ? DisplayFormat.duration(task.eta) : "—"
         default: value = task.displayName
@@ -171,16 +167,10 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
-        let row = tableView.selectedRow
-        detailController.client = engineManager?.client
-        detailController.task = row >= 0 && row < visibleTasks.count ? visibleTasks[row] : nil
-    }
-
-    @objc private func selectCategory(_ sender: NSSegmentedControl) {
-        category = TaskCategory(rawValue: sender.selectedSegment) ?? .downloading
-        tableView.deselectAll(nil)
-        detailController.task = nil
-        reload()
+        if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
+            detailController.task = selectedTask
+        }
+        view.window?.toolbar?.validateVisibleItems()
     }
 
     @IBAction func newDocument(_ sender: Any?) { addDownload(sender) }
@@ -249,44 +239,59 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
+    @objc private func showDetails(_ sender: Any?) {
+        guard let task = selectedTask else { return }
+
+        if detailPopover?.isShown == true {
+            detailPopover?.close()
+            detailPopover = nil
+            return
+        }
+
+        let controller = TaskDetailViewController()
+        controller.client = engineManager?.client
+        controller.task = task
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentSize = NSSize(width: 520, height: 420)
+        popover.contentViewController = controller
+        detailPopover = popover
+
+        let row = tableView.selectedRow
+        let anchor = row >= 0 ? tableView.rect(ofRow: row) : tableView.visibleRect
+        popover.show(relativeTo: anchor, of: tableView, preferredEdge: .maxX)
+    }
+
     private func showError(_ error: Error) {
         let alert = NSAlert(error: error)
         if let window = view.window { alert.beginSheetModal(for: window) }
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.add, .torrent, .pause, .resume, .remove, .flexibleSpace, .categories, .flexibleSpace, .preferences]
+        [.add, .torrent, .flexibleSpace, .details, .pause, .resume, .remove]
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         toolbarDefaultItemIdentifiers(toolbar) + [.space]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        if id == .categories {
-            categoryControl.selectedSegment = category.rawValue
-            categoryControl.target = self
-            categoryControl.action = #selector(selectCategory(_:))
-            let item = NSToolbarItem(itemIdentifier: id)
-            item.view = categoryControl
-            item.label = "Task Category"
-            return item
-        }
         let label: String
         let symbol: String
         let action: Selector
         switch id {
         case .add: (label, symbol, action) = ("Add Download", "plus", #selector(addDownload(_:)))
         case .torrent: (label, symbol, action) = ("Add Torrent", "doc.badge.plus", #selector(addTorrent(_:)))
+        case .details: (label, symbol, action) = ("Details", "info.circle", #selector(showDetails(_:)))
         case .pause: (label, symbol, action) = ("Pause", "pause", #selector(pauseSelected(_:)))
         case .resume: (label, symbol, action) = ("Resume", "play", #selector(resumeSelected(_:)))
         case .remove: (label, symbol, action) = ("Remove", "trash", #selector(removeSelected(_:)))
-        case .preferences: (label, symbol, action) = ("Settings", "gearshape", #selector(AppDelegate.showPreferences(_:)))
         default: return nil
         }
         let item = NSToolbarItem(itemIdentifier: id)
         item.label = label
         item.paletteLabel = label
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
-        item.target = id == .preferences ? NSApp.delegate : self
+        item.target = self
         item.action = action
         return item
     }
@@ -296,7 +301,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         case .add, .torrent: engineManager?.state == .ready
         case .pause: selectedTask?.canPause == true
         case .resume: selectedTask?.canResume == true
-        case .remove: selectedTask != nil
+        case .details, .remove: selectedTask != nil
         default: true
         }
     }
@@ -308,6 +313,5 @@ private extension NSToolbarItem.Identifier {
     static let pause = Self("pause")
     static let resume = Self("resume")
     static let remove = Self("remove")
-    static let categories = Self("categories")
-    static let preferences = Self("preferences")
+    static let details = Self("details")
 }

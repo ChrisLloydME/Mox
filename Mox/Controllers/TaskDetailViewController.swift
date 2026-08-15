@@ -14,46 +14,69 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
     private var peers: [Aria2Peer] = []
 
     override func loadView() {
+        let rootView = NSView()
         titleLabel.font = .preferredFont(forTextStyle: .title2)
         titleLabel.lineBreakMode = .byTruncatingTail
         summaryLabel.textColor = .secondaryLabelColor
         locationLabel.textColor = .secondaryLabelColor
         locationLabel.font = .preferredFont(forTextStyle: .caption1)
+        locationLabel.lineBreakMode = .byTruncatingMiddle
+        locationLabel.maximumNumberOfLines = 1
 
-        configure(table: filesTable, columns: [("file", "File", 190), ("size", "Size", 80)])
-        configure(table: peersTable, columns: [("peer", "Peer", 140), ("speed", "Down", 80)])
+        configure(table: filesTable, columns: [("file", "File", 340), ("size", "Size", 100)])
+        configure(table: peersTable, columns: [("peer", "Peer", 300), ("speed", "Down", 120)])
         let filesScroll = scrollView(for: filesTable)
         let peersScroll = scrollView(for: peersTable)
         let trackerScroll = NSScrollView()
         trackerScroll.documentView = trackersView
         trackerScroll.hasVerticalScroller = true
+        trackerScroll.autohidesScrollers = true
         trackersView.isEditable = false
         trackersView.drawsBackground = false
         trackersView.font = .preferredFont(forTextStyle: .body)
+        trackersView.textContainerInset = NSSize(width: 8, height: 8)
 
         let tabs = NSTabView()
         tabs.addTabViewItem(item(label: "Files", view: filesScroll))
         tabs.addTabViewItem(item(label: "Peers", view: peersScroll))
         tabs.addTabViewItem(item(label: "Trackers", view: trackerScroll))
 
-        let stack = NSStackView(views: [titleLabel, summaryLabel, locationLabel, tabs])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 8
-        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
-        tabs.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32).isActive = true
-        tabs.heightAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
-        view = stack
+        let header = NSStackView(views: [titleLabel, summaryLabel, locationLabel])
+        header.orientation = .vertical
+        header.alignment = .leading
+        header.spacing = 5
+
+        rootView.addSubview(header)
+        rootView.addSubview(tabs)
+        header.translatesAutoresizingMaskIntoConstraints = false
+        tabs.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            header.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 16),
+            header.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -16),
+            header.topAnchor.constraint(equalTo: rootView.topAnchor, constant: 16),
+            titleLabel.widthAnchor.constraint(equalTo: header.widthAnchor),
+            summaryLabel.widthAnchor.constraint(equalTo: header.widthAnchor),
+            locationLabel.widthAnchor.constraint(equalTo: header.widthAnchor),
+            tabs.leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 12),
+            tabs.trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: -12),
+            tabs.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 12),
+            tabs.bottomAnchor.constraint(equalTo: rootView.bottomAnchor, constant: -12)
+        ])
+        preferredContentSize = NSSize(width: 520, height: 420)
+        view = rootView
     }
 
     private func configure(table: NSTableView, columns: [(String, String, CGFloat)]) {
         table.delegate = self
         table.dataSource = self
-        table.usesAlternatingRowBackgroundColors = true
+        table.usesAlternatingRowBackgroundColors = false
+        table.rowHeight = 28
         for (id, title, width) in columns {
             let column = NSTableColumn(identifier: .init(id))
             column.title = title
             column.width = width
+            column.minWidth = id == "file" || id == "peer" ? 180 : 80
+            if id == "file" || id == "peer" { column.resizingMask = .autoresizingMask }
             table.addTableColumn(column)
         }
     }
@@ -62,6 +85,7 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
         let scroll = NSScrollView()
         scroll.documentView = table
         scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
         return scroll
     }
 

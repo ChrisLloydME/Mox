@@ -12,7 +12,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let settingsStore = SettingsStore()
     lazy var engineManager = EngineManager(settingsStore: settingsStore)
     lazy var taskStore = TaskStore { [weak engineManager] in engineManager?.client }
-    private var aboutController: AboutWindowController?
     private var mainWindow: NSWindow?
     private var preferencesController: PreferencesWindowController?
     private var terminationPending = false
@@ -53,14 +52,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            if mainWindow == nil {
-                mainWindow = sender.windows.first { $0.contentViewController is ViewController }
-            }
-            sender.activate(ignoringOtherApps: true)
-            mainWindow?.makeKeyAndOrderFront(nil)
-        }
+        if mainWindow?.isVisible != true { showMainWindow(sender) }
         return true
+    }
+
+    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        showMainWindow(sender)
+        return true
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    @objc func showMainWindow(_ sender: Any?) {
+        if mainWindow == nil {
+            mainWindow = NSApp.windows.first { $0.contentViewController is ViewController }
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindow?.makeKeyAndOrderFront(sender)
     }
 
     @objc func showPreferences(_ sender: Any?) {
@@ -79,10 +89,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        if aboutController == nil { aboutController = AboutWindowController() }
-        aboutController?.showWindow(sender)
+        let bundle = Bundle.main
+        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+        let configuredCopyright = (bundle.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let copyright = configuredCopyright.flatMap { $0.isEmpty ? nil : $0 }
+            ?? "Copyright © 2026 Christopher Lloyd."
         NSApp.activate(ignoringOtherApps: true)
-        aboutController?.window?.orderFrontRegardless()
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "Mox",
+            .applicationIcon: NSWorkspace.shared.icon(forFile: bundle.bundlePath),
+            .applicationVersion: version,
+            .version: build,
+            .credits: NSAttributedString(
+                string: "\(copyright)\n\nMox includes third-party open-source software."
+            )
+        ])
     }
 
     private func configureMenus() {

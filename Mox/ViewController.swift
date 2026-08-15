@@ -6,6 +6,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private var taskStore: TaskStore!
     private var settingsStore: SettingsStore!
     private var didConfigureWindow = false
+    private var selectedTaskID: String?
     private var visibleTasks: [Aria2Task] { taskStore?.tasks ?? [] }
 
     private let tableView = NSTableView()
@@ -116,6 +117,15 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private func reload() {
         guard isViewLoaded else { return }
         tableView.reloadData()
+        if let selectedTaskID,
+           let row = visibleTasks.firstIndex(where: { $0.gid == selectedTaskID }) {
+            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        } else {
+            selectedTaskID = nil
+            tableView.deselectAll(nil)
+            detailPopover?.close()
+            detailPopover = nil
+        }
         emptyLabel.stringValue = "No downloads"
         emptyLabel.isHidden = !visibleTasks.isEmpty
         switch engineManager?.state {
@@ -167,8 +177,15 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
+        let row = tableView.selectedRow
+        selectedTaskID = row >= 0 && row < visibleTasks.count ? visibleTasks[row].gid : nil
         if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
-            detailController.task = selectedTask
+            if let selectedTask {
+                detailController.task = selectedTask
+            } else {
+                detailPopover?.close()
+                detailPopover = nil
+            }
         }
         view.window?.toolbar?.validateVisibleItems()
     }
@@ -225,8 +242,8 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     }
 
     private var selectedTask: Aria2Task? {
-        let row = tableView.selectedRow
-        return row >= 0 && row < visibleTasks.count ? visibleTasks[row] : nil
+        guard let selectedTaskID else { return nil }
+        return visibleTasks.first { $0.gid == selectedTaskID }
     }
 
     private func performOnSelection(_ action: @escaping (Aria2Task) async throws -> Void) {

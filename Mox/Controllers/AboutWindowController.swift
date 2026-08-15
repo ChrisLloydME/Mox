@@ -3,7 +3,7 @@ import Cocoa
 final class AboutWindowController: NSWindowController, NSWindowDelegate {
     init(bundle: Bundle = .main) {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 354),
+            contentRect: NSRect(x: 0, y: 0, width: 660, height: 354),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -37,7 +37,7 @@ final class AboutWindowController: NSWindowController, NSWindowDelegate {
 
     private func makeContentController(bundle: Bundle) -> NSViewController {
         let controller = NSViewController()
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: 700, height: 354))
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: 660, height: 354))
 
         let iconView = NSImageView(image: NSWorkspace.shared.icon(forFile: bundle.bundlePath))
         iconView.identifier = NSUserInterfaceItemIdentifier("about.applicationIcon")
@@ -82,13 +82,13 @@ final class AboutWindowController: NSWindowController, NSWindowDelegate {
 
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 30),
-            iconView.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 4),
+            iconView.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 0),
             iconView.widthAnchor.constraint(equalToConstant: 174),
             iconView.heightAnchor.constraint(equalToConstant: 174),
 
             information.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 28),
-            information.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -40),
-            information.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 2),
+            information.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
+            information.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: 0),
             nameLabel.widthAnchor.constraint(equalTo: information.widthAnchor),
             copyrightLabel.widthAnchor.constraint(equalTo: information.widthAnchor)
         ])
@@ -116,6 +116,6 @@ final class AboutWindowController: NSWindowController, NSWindowDelegate {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let copyright = configured.flatMap { $0.isEmpty ? nil : $0 }
             ?? "Copyright © 2026 Christopher Lloyd."
-        return "\(copyright) \(appName(from: bundle)) includes\nthird-party open-source software."
+        return "\(copyright) \n\(appName(from: bundle)) includes third-party open-source software."
     }
 }

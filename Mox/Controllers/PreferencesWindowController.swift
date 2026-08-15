@@ -26,7 +26,7 @@ final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
 
         let toolbar = NSToolbar(identifier: .preferences)
         toolbar.delegate = self
-        toolbar.displayMode = .labelOnly
+        toolbar.sizeMode = .regular
         toolbar.allowsUserCustomization = false
         window.toolbar = toolbar
         window.contentViewController = NSHostingController(rootView: PreferencesView(
@@ -56,18 +56,27 @@ final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
         let item = NSToolbarItem(itemIdentifier: identifier)
+        let button: NSButton
         switch identifier {
         case .cancel:
             item.label = "Cancel"
-            item.target = self
-            item.action = #selector(cancel(_:))
+            button = NSButton(title: "Cancel", target: self, action: #selector(cancel(_:)))
+            button.keyEquivalent = "\u{1b}"
         case .save:
             item.label = "Save"
-            item.target = self
-            item.action = #selector(saveFromToolbar(_:))
+            button = NSButton(title: "Save", target: self, action: #selector(saveFromToolbar(_:)))
+            button.keyEquivalent = "\r"
         default:
             return nil
         }
+        button.controlSize = .large
+        if #available(macOS 26.0, *) {
+            button.bezelStyle = .glass
+        } else {
+            button.bezelStyle = .toolbar
+        }
+        item.paletteLabel = item.label
+        item.view = button
         return item
     }
 

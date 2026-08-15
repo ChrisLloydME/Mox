@@ -6,7 +6,6 @@ final class DownloadTaskCellView: NSTableCellView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let progress = NSProgressIndicator()
     private let detailLabel = NSTextField(labelWithString: "")
-    private let removeButton = NSButton()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -18,7 +17,7 @@ final class DownloadTaskCellView: NSTableCellView {
         buildInterface()
     }
 
-    func configure(task: Aria2Task, row: Int, isSelected: Bool, target: AnyObject, removeAction: Selector) {
+    func configure(task: Aria2Task, isSelected: Bool) {
         titleLabel.stringValue = task.displayName
         titleLabel.toolTip = task.displayName
         detailLabel.stringValue = detailText(for: task)
@@ -33,10 +32,9 @@ final class DownloadTaskCellView: NSTableCellView {
         }
 
         fileIcon.image = icon(for: task)
-        removeButton.tag = row
-        removeButton.target = target
-        removeButton.action = removeAction
-        card.fillColor = isSelected ? .unemphasizedSelectedContentBackgroundColor : .controlBackgroundColor
+        card.fillColor = .controlBackgroundColor
+        card.borderColor = isSelected ? .controlAccentColor : .separatorColor
+        card.borderWidth = isSelected ? 2 : 1
     }
 
     private func buildInterface() {
@@ -63,20 +61,13 @@ final class DownloadTaskCellView: NSTableCellView {
         detailLabel.lineBreakMode = .byTruncatingTail
         detailLabel.maximumNumberOfLines = 1
 
-        removeButton.image = NSImage(named: NSImage.stopProgressTemplateName)
-        removeButton.imagePosition = .imageOnly
-        removeButton.isBordered = false
-        removeButton.toolTip = "Remove"
-        removeButton.setAccessibilityLabel("Remove download")
-
         addSubview(card)
-        [fileIcon, titleLabel, progress, detailLabel, removeButton].forEach(card.addSubview)
+        [fileIcon, titleLabel, progress, detailLabel].forEach(card.addSubview)
         card.translatesAutoresizingMaskIntoConstraints = false
         fileIcon.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         progress.translatesAutoresizingMaskIntoConstraints = false
         detailLabel.translatesAutoresizingMaskIntoConstraints = false
-        removeButton.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
             card.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -89,13 +80,8 @@ final class DownloadTaskCellView: NSTableCellView {
             fileIcon.widthAnchor.constraint(equalToConstant: 44),
             fileIcon.heightAnchor.constraint(equalToConstant: 44),
 
-            removeButton.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
-            removeButton.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            removeButton.widthAnchor.constraint(equalToConstant: 24),
-            removeButton.heightAnchor.constraint(equalToConstant: 24),
-
             titleLabel.leadingAnchor.constraint(equalTo: fileIcon.trailingAnchor, constant: 14),
-            titleLabel.trailingAnchor.constraint(equalTo: removeButton.leadingAnchor, constant: -12),
+            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
             titleLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
 
             progress.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),

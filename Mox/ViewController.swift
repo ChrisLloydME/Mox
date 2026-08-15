@@ -51,6 +51,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private func buildInterface() {
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.allowsMultipleSelection = false
+        tableView.selectionHighlightStyle = .none
         tableView.headerView = nil
         tableView.rowHeight = 82
         tableView.intercellSpacing = NSSize(width: 0, height: 2)
@@ -157,10 +158,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         let cell = DownloadTaskCellView()
         cell.configure(
             task: task,
-            row: row,
-            isSelected: task.gid == selectedTaskID,
-            target: self,
-            removeAction: #selector(removeTaskFromRow(_:))
+            isSelected: task.gid == selectedTaskID
         )
         return cell
     }
@@ -174,10 +172,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
             let task = visibleTasks[visibleRow]
             cell.configure(
                 task: task,
-                row: visibleRow,
-                isSelected: task.gid == selectedTaskID,
-                target: self,
-                removeAction: #selector(removeTaskFromRow(_:))
+                isSelected: task.gid == selectedTaskID
             )
         }
         if let detailController = detailPopover?.contentViewController as? TaskDetailViewController {
@@ -246,12 +241,6 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
                 catch { self.showError(error) }
             }
         }
-    }
-
-    @objc private func removeTaskFromRow(_ sender: NSButton) {
-        guard sender.tag >= 0, sender.tag < visibleTasks.count else { return }
-        tableView.selectRowIndexes(IndexSet(integer: sender.tag), byExtendingSelection: false)
-        removeSelected(sender)
     }
 
     private var selectedTask: Aria2Task? {

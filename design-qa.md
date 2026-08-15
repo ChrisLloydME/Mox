@@ -10,7 +10,7 @@
 **Findings**
 
 - Visual comparison is blocked. The request explicitly disallows launching the app to validate the UI with screenshots, so there is no rendered implementation artifact to compare with the reference.
-- Static review confirms that the row uses native AppKit controls for the file icon, filename, progress indicator, detail text, and remove action. The title is populated only from `task.displayName`.
+- Static review confirms that the row uses native AppKit controls for the file icon, filename, progress indicator, and detail text. The title is populated only from `task.displayName`; removal remains available through the toolbar and Delete command.
 - Fonts and typography, spacing and layout rhythm, dynamic system colors, rendered icon quality, and final copy truncation cannot be visually certified without a same-state implementation capture.
 
 **Full-view comparison evidence**

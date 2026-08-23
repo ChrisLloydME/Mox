@@ -94,8 +94,8 @@ final class AddDownloadSheet: NSObject {
     }
 
     @objc private func add(_ sender: Any?) {
-        let split = optionsModel.threads
-        guard (1...64).contains(split) else {
+        sheet.makeFirstResponder(nil)
+        guard let split = optionsModel.selectedThreads else {
             NSSound.beep()
             return
         }
@@ -114,13 +114,23 @@ final class AddDownloadSheet: NSObject {
     }
 }
 
-private final class AddDownloadOptionsModel: ObservableObject {
+final class AddDownloadOptionsModel: ObservableObject {
     @Published var directory: String
-    @Published var threads: Int
+    @Published var threadText: String
 
     init(directory: String, threads: Int) {
         self.directory = directory
-        self.threads = min(64, max(1, threads))
+        threadText = String(min(64, max(1, threads)))
+    }
+
+    var selectedThreads: Int? {
+        let text = threadText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int(text), (1...64).contains(value) else { return nil }
+        return value
+    }
+
+    func setThreadCount(_ value: Int) {
+        threadText = String(min(64, max(1, value)))
     }
 }
 
@@ -141,11 +151,18 @@ private struct AddDownloadOptionsView: View {
                 }
                 LabeledContent("Threads") {
                     HStack(spacing: 6) {
-                        TextField("Threads", value: $model.threads, format: .number)
+                        TextField("Threads", text: $model.threadText)
                             .labelsHidden()
                             .multilineTextAlignment(.trailing)
                             .frame(width: 58)
-                        Stepper("Threads", value: $model.threads, in: 1...64)
+                        Stepper(
+                            "Threads",
+                            value: Binding(
+                                get: { model.selectedThreads ?? 1 },
+                                set: { model.setThreadCount($0) }
+                            ),
+                            in: 1...64
+                        )
                             .labelsHidden()
                     }
                 }

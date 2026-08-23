@@ -4,6 +4,28 @@ import Testing
 @testable import Mox
 
 struct MoxTests {
+    @Test @MainActor func addDownloadThreadsUpdateBeforeFieldLosesFocus() {
+        let model = AddDownloadOptionsModel(directory: "/Downloads", threads: 5)
+
+        model.threadText = "16"
+        #expect(model.selectedThreads == 16)
+
+        model.threadText = "65"
+        #expect(model.selectedThreads == nil)
+
+        model.setThreadCount(32)
+        #expect(model.threadText == "32")
+        #expect(model.selectedThreads == 32)
+    }
+
+    @Test func perDownloadThreadsSetSplitAndServerConnectionLimit() {
+        let options = Aria2Client.downloadOptions(directory: "/Downloads", threads: 16)
+
+        #expect(options["dir"] == "/Downloads")
+        #expect(options["split"] == "16")
+        #expect(options["max-connection-per-server"] == "16")
+    }
+
     @Test @MainActor func toolbarActionsUsePauseResumeDetailsRemoveOrder() {
         let controller = ViewController()
         let toolbar = NSToolbar(identifier: "ToolbarOrderTest")

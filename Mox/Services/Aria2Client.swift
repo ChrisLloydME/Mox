@@ -58,7 +58,15 @@ actor Aria2Client {
     }
 
     func add(uris: [String], directory: String, split: Int) async throws -> String {
-        try await call("addUri", parameters: [uris, ["dir": directory, "split": String(split)]])
+        try await call("addUri", parameters: [uris, Self.downloadOptions(directory: directory, threads: split)])
+    }
+
+    static func downloadOptions(directory: String, threads: Int) -> [String: String] {
+        [
+            "dir": directory,
+            "split": String(threads),
+            "max-connection-per-server": String(threads)
+        ]
     }
 
     func addTorrent(data: Data, directory: String) async throws -> String {

@@ -150,8 +150,7 @@ private struct AddDownloadOptionsView: View {
                                 get: { Double(model.threads) },
                                 set: { model.setThreadCount(Int($0.rounded())) }
                             ),
-                            in: 1...64,
-                            step: 1
+                            in: 1...64
                         )
                         .frame(minWidth: 230)
                         .accessibilityLabel("Download threads")

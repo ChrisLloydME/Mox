@@ -118,6 +118,16 @@ struct MoxTests {
         #expect(task.pieceStates == [true, false, true, false, true, false])
     }
 
+    @Test @MainActor func pieceProgressAdaptsToNarrowLayoutWithoutConstraints() {
+        let view = PieceProgressView(frame: NSRect(x: 0, y: 0, width: 20, height: 118))
+        view.update(states: Array(repeating: true, count: 1_000))
+
+        #expect(PieceProgressView.columnCount(for: view.bounds.width) == 2)
+        #expect(PieceProgressView.rowCount(for: view.bounds.height) == 12)
+        #expect(view.constraints.isEmpty)
+        #expect(view.subviews.isEmpty)
+    }
+
     @Test func settingsProduceExpectedEngineOptions() {
         var settings = AppSettings.defaults()
         settings.downloadDirectory = "/Downloads"

@@ -94,8 +94,8 @@ final class AddDownloadSheet: NSObject {
     }
 
     @objc private func add(_ sender: Any?) {
-        sheet.makeFirstResponder(nil)
-        guard let split = optionsModel.selectedThreads else {
+        let split = optionsModel.threads
+        guard (1...64).contains(split) else {
             NSSound.beep()
             return
         }
@@ -116,21 +116,15 @@ final class AddDownloadSheet: NSObject {
 
 final class AddDownloadOptionsModel: ObservableObject {
     @Published var directory: String
-    @Published var threadText: String
+    @Published private(set) var threads: Int
 
     init(directory: String, threads: Int) {
         self.directory = directory
-        threadText = String(min(64, max(1, threads)))
-    }
-
-    var selectedThreads: Int? {
-        let text = threadText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let value = Int(text), (1...64).contains(value) else { return nil }
-        return value
+        self.threads = min(64, max(1, threads))
     }
 
     func setThreadCount(_ value: Int) {
-        threadText = String(min(64, max(1, value)))
+        threads = min(64, max(1, value))
     }
 }
 
@@ -150,20 +144,24 @@ private struct AddDownloadOptionsView: View {
                     }
                 }
                 LabeledContent("Threads") {
-                    HStack(spacing: 6) {
-                        TextField("Threads", text: $model.threadText)
-                            .labelsHidden()
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 58)
-                        Stepper(
-                            "Threads",
+                    HStack(spacing: 10) {
+                        Slider(
                             value: Binding(
-                                get: { model.selectedThreads ?? 1 },
-                                set: { model.setThreadCount($0) }
+                                get: { Double(model.threads) },
+                                set: { model.setThreadCount(Int($0.rounded())) }
                             ),
-                            in: 1...64
+                            in: 1...64,
+                            step: 1
                         )
-                            .labelsHidden()
+                        .frame(minWidth: 230)
+                        .accessibilityLabel("Download threads")
+                        .accessibilityValue("\(model.threads)")
+
+                        Text(model.threads.formatted())
+                            .monospacedDigit()
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 26, alignment: .trailing)
+                            .accessibilityHidden(true)
                     }
                 }
             }

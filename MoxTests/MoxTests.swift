@@ -4,18 +4,17 @@ import Testing
 @testable import Mox
 
 struct MoxTests {
-    @Test @MainActor func addDownloadThreadsUpdateBeforeFieldLosesFocus() {
+    @Test @MainActor func addDownloadThreadSliderClampsToSupportedRange() {
         let model = AddDownloadOptionsModel(directory: "/Downloads", threads: 5)
 
-        model.threadText = "16"
-        #expect(model.selectedThreads == 16)
-
-        model.threadText = "65"
-        #expect(model.selectedThreads == nil)
-
         model.setThreadCount(32)
-        #expect(model.threadText == "32")
-        #expect(model.selectedThreads == 32)
+        #expect(model.threads == 32)
+
+        model.setThreadCount(0)
+        #expect(model.threads == 1)
+
+        model.setThreadCount(65)
+        #expect(model.threads == 64)
     }
 
     @Test func perDownloadThreadsSetSplitAndServerConnectionLimit() {

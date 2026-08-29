@@ -1,6 +1,7 @@
 import Cocoa
 
 final class TaskDetailViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+    static let initialContentSize = NSSize(width: 520, height: 420)
     var client: Aria2Client?
     var task: Aria2Task? { didSet { update() } }
 
@@ -19,7 +20,7 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
     private var peers: [Aria2Peer] = []
 
     override func loadView() {
-        let rootView = NSView()
+        let rootView = NSView(frame: NSRect(origin: .zero, size: Self.initialContentSize))
         titleLabel.font = .preferredFont(forTextStyle: .title2)
         titleLabel.lineBreakMode = .byTruncatingTail
         summaryLabel.textColor = .secondaryLabelColor
@@ -42,7 +43,7 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
         trackersView.textContainerInset = NSSize(width: 8, height: 8)
 
         let overview = buildOverview()
-        let tabs = NSTabView()
+        let tabs = NSTabView(frame: NSRect(x: 12, y: 12, width: 496, height: 300))
         tabs.addTabViewItem(item(label: "Overview", view: overview))
         tabs.addTabViewItem(item(label: "Files", view: filesScroll))
         tabs.addTabViewItem(item(label: "Peers", view: peersScroll))
@@ -69,12 +70,12 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
             tabs.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 12),
             tabs.bottomAnchor.constraint(equalTo: rootView.bottomAnchor, constant: -12)
         ])
-        preferredContentSize = NSSize(width: 520, height: 420)
+        preferredContentSize = Self.initialContentSize
         view = rootView
     }
 
     private func buildOverview() -> NSView {
-        let root = NSView()
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: 496, height: 280))
         pieceProgressView.setAccessibilityLabel("Download pieces")
 
         progressIndicator.style = .bar
@@ -100,7 +101,7 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
         content.spacing = 14
         root.addSubview(content)
         content.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
+        let overviewConstraints = [
             content.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
             content.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
             content.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
@@ -109,7 +110,9 @@ final class TaskDetailViewController: NSViewController, NSTableViewDataSource, N
             progressRow.widthAnchor.constraint(equalTo: content.widthAnchor),
             transferLabel.widthAnchor.constraint(equalTo: content.widthAnchor),
             activityLabel.widthAnchor.constraint(equalTo: content.widthAnchor)
-        ])
+        ]
+        overviewConstraints.forEach { $0.priority = NSLayoutConstraint.Priority(999) }
+        NSLayoutConstraint.activate(overviewConstraints)
         return root
     }
 

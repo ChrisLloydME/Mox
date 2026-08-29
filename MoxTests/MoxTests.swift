@@ -128,6 +128,14 @@ struct MoxTests {
         #expect(view.subviews.isEmpty)
     }
 
+    @Test @MainActor func taskDetailStartsAtItsSupportedLayoutSize() {
+        let controller = TaskDetailViewController()
+
+        #expect(controller.view.frame.size == TaskDetailViewController.initialContentSize)
+        controller.view.layoutSubtreeIfNeeded()
+        #expect(controller.view.frame.size == TaskDetailViewController.initialContentSize)
+    }
+
     @Test func settingsProduceExpectedEngineOptions() {
         var settings = AppSettings.defaults()
         settings.downloadDirectory = "/Downloads"

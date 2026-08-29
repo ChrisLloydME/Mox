@@ -1,6 +1,7 @@
 import Cocoa
 
 final class TaskDetailSheet: NSObject {
+    private static let contentSize = NSSize(width: 560, height: 500)
     private let sheet: NSWindow
     private let detailController = TaskDetailViewController()
     private var completion: (() -> Void)?
@@ -17,7 +18,7 @@ final class TaskDetailSheet: NSObject {
 
     override init() {
         sheet = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 500),
+            contentRect: NSRect(origin: .zero, size: Self.contentSize),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -25,11 +26,17 @@ final class TaskDetailSheet: NSObject {
         super.init()
         sheet.title = "Download Details"
         sheet.isReleasedWhenClosed = false
-        sheet.contentViewController = buildController()
+        let controller = buildController()
+        controller.preferredContentSize = Self.contentSize
+        sheet.contentViewController = controller
+        sheet.setContentSize(Self.contentSize)
+        sheet.contentView?.layoutSubtreeIfNeeded()
     }
 
     func begin(for window: NSWindow, completion: @escaping () -> Void) {
         self.completion = completion
+        sheet.setContentSize(Self.contentSize)
+        sheet.contentView?.layoutSubtreeIfNeeded()
         window.beginSheet(sheet)
     }
 
@@ -44,7 +51,7 @@ final class TaskDetailSheet: NSObject {
         let controller = NSViewController()
         controller.addChild(detailController)
 
-        let root = NSView()
+        let root = NSView(frame: NSRect(origin: .zero, size: Self.contentSize))
         let separator = NSBox()
         separator.boxType = .separator
         let done = NSButton(title: "Done", target: self, action: #selector(done(_:)))

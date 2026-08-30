@@ -33,8 +33,9 @@ struct MoxTests {
     }
 
     @Test @MainActor func downloadListSupportsNativeMultipleSelection() throws {
-        let controller = ViewController()
-        controller.loadViewIfNeeded()
+        let controller = try #require(
+            NSApp.windows.lazy.compactMap { $0.contentViewController as? ViewController }.first
+        )
 
         let table = try #require(controller.view.firstDescendant(ofType: NSTableView.self))
         #expect(table.allowsMultipleSelection)

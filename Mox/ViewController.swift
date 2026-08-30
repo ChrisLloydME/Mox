@@ -6,7 +6,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private var taskStore: TaskStore!
     private var settingsStore: SettingsStore!
     private var didConfigureWindow = false
-    private var selectedTaskID: String?
+    private var selectedTaskIDs: Set<String> = []
     private var visibleTasks: [Aria2Task] { taskStore?.tasks ?? [] }
 
     private let tableView = NSTableView()
@@ -49,7 +49,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
 
     private func buildInterface() {
         tableView.usesAlternatingRowBackgroundColors = false
-        tableView.allowsMultipleSelection = false
+        tableView.allowsMultipleSelection = true
         tableView.selectionHighlightStyle = .none
         tableView.headerView = nil
         tableView.rowHeight = 82
@@ -100,14 +100,14 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     private func reload() {
         guard isViewLoaded else { return }
         tableView.reloadData()
-        if let selectedTaskID,
-           let row = visibleTasks.firstIndex(where: { $0.gid == selectedTaskID }) {
-            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        } else {
-            selectedTaskID = nil
+        selectedTaskIDs.formIntersection(visibleTasks.map(\.gid))
+        let selectedRows = IndexSet(visibleTasks.indices.filter { selectedTaskIDs.contains(visibleTasks[$0].gid) })
+        if selectedRows.isEmpty {
             tableView.deselectAll(nil)
             detailSheet?.close()
             detailSheet = nil
+        } else {
+            tableView.selectRowIndexes(selectedRows, byExtendingSelection: false)
         }
         emptyLabel.stringValue = "No downloads"
         emptyLabel.isHidden = !visibleTasks.isEmpty
@@ -123,21 +123,22 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         let cell = DownloadTaskCellView()
         cell.configure(
             task: task,
-            isSelected: task.gid == selectedTaskID
+            isSelected: selectedTaskIDs.contains(task.gid)
         )
         return cell
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
-        let row = tableView.selectedRow
-        selectedTaskID = row >= 0 && row < visibleTasks.count ? visibleTasks[row].gid : nil
+        selectedTaskIDs = Set(tableView.selectedRowIndexes.compactMap { row in
+            row < visibleTasks.count ? visibleTasks[row].gid : nil
+        })
         let visibleRows = tableView.rows(in: tableView.visibleRect)
         for visibleRow in visibleRows.location..<(visibleRows.location + visibleRows.length) {
             guard let cell = tableView.view(atColumn: 0, row: visibleRow, makeIfNecessary: false) as? DownloadTaskCellView else { continue }
             let task = visibleTasks[visibleRow]
             cell.configure(
                 task: task,
-                isSelected: task.gid == selectedTaskID
+                isSelected: selectedTaskIDs.contains(task.gid)
             )
         }
         if let detailSheet {
@@ -208,9 +209,12 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         }
     }
 
+    private var selectedTasks: [Aria2Task] {
+        visibleTasks.filter { selectedTaskIDs.contains($0.gid) }
+    }
+
     private var selectedTask: Aria2Task? {
-        guard let selectedTaskID else { return nil }
-        return visibleTasks.first { $0.gid == selectedTaskID }
+        selectedTasks.count == 1 ? selectedTasks[0] : nil
     }
 
     private func performOnSelection(_ action: @escaping (Aria2Task) async throws -> Void) {

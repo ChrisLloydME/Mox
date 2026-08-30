@@ -32,6 +32,14 @@ struct MoxTests {
         #expect(identifiers.suffix(4).map(\.rawValue) == ["pause", "resume", "details", "remove"])
     }
 
+    @Test @MainActor func downloadListSupportsNativeMultipleSelection() throws {
+        let controller = ViewController()
+        controller.loadViewIfNeeded()
+
+        let table = try #require(controller.view.firstDescendant(ofType: NSTableView.self))
+        #expect(table.allowsMultipleSelection)
+    }
+
     @Test @MainActor func aboutMenuOpensAboutWindow() throws {
         let aboutItem = try #require(NSApp.mainMenu?.items.first?.submenu?.item(withTitle: "About Mox"))
         let action = try #require(aboutItem.action)
@@ -156,5 +164,10 @@ private extension NSView {
     func findView(withIdentifier identifier: String) -> NSView? {
         if self.identifier?.rawValue == identifier { return self }
         return subviews.lazy.compactMap { $0.findView(withIdentifier: identifier) }.first
+    }
+
+    func firstDescendant<View: NSView>(ofType type: View.Type) -> View? {
+        if let match = self as? View { return match }
+        return subviews.lazy.compactMap { $0.firstDescendant(ofType: type) }.first
     }
 }

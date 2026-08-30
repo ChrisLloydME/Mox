@@ -73,15 +73,33 @@ final class TaskStore {
     }
 
     func pause(_ task: Aria2Task) async throws {
+        try await pause([task])
+    }
+
+    func pause(_ tasks: [Aria2Task]) async throws {
         guard let client = clientProvider() else { throw RPCError(code: -22, message: "The download engine is not ready.") }
-        try await client.pause(gid: task.gid)
+        var firstError: Error?
+        for task in tasks where task.canPause {
+            do { try await client.pause(gid: task.gid) }
+            catch { firstError = firstError ?? error }
+        }
         await refresh()
+        if let firstError { throw firstError }
     }
 
     func resume(_ task: Aria2Task) async throws {
+        try await resume([task])
+    }
+
+    func resume(_ tasks: [Aria2Task]) async throws {
         guard let client = clientProvider() else { throw RPCError(code: -22, message: "The download engine is not ready.") }
-        try await client.resume(gid: task.gid)
+        var firstError: Error?
+        for task in tasks where task.canResume {
+            do { try await client.resume(gid: task.gid) }
+            catch { firstError = firstError ?? error }
+        }
         await refresh()
+        if let firstError { throw firstError }
     }
 
     func remove(_ task: Aria2Task, deleteFiles: Bool) async throws {

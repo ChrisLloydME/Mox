@@ -187,8 +187,13 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         }
     }
 
-    @objc private func pauseSelected(_ sender: Any?) { performOnSelection { try await self.taskStore.pause($0) } }
-    @objc private func resumeSelected(_ sender: Any?) { performOnSelection { try await self.taskStore.resume($0) } }
+    @objc private func pauseSelected(_ sender: Any?) {
+        performOnSelectedTasks(where: \.canPause) { try await self.taskStore.pause($0) }
+    }
+
+    @objc private func resumeSelected(_ sender: Any?) {
+        performOnSelectedTasks(where: \.canResume) { try await self.taskStore.resume($0) }
+    }
 
     @objc private func removeSelected(_ sender: Any?) {
         guard let task = selectedTask else { return }
@@ -217,9 +222,13 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         selectedTasks.count == 1 ? selectedTasks[0] : nil
     }
 
-    private func performOnSelection(_ action: @escaping (Aria2Task) async throws -> Void) {
-        guard let task = selectedTask else { return }
-        Task { do { try await action(task) } catch { showError(error) } }
+    private func performOnSelectedTasks(
+        where predicate: (Aria2Task) -> Bool,
+        action: @escaping ([Aria2Task]) async throws -> Void
+    ) {
+        let tasks = selectedTasks.filter(predicate)
+        guard !tasks.isEmpty else { return }
+        Task { do { try await action(tasks) } catch { showError(error) } }
     }
 
     @objc private func showSelectedInFinder(_ sender: Any?) {
@@ -276,9 +285,10 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
         switch item.itemIdentifier {
         case .add, .torrent: engineManager?.state == .ready
-        case .pause: selectedTask?.canPause == true
-        case .resume: selectedTask?.canResume == true
-        case .details, .remove: selectedTask != nil
+        case .pause: selectedTasks.contains(where: \.canPause)
+        case .resume: selectedTasks.contains(where: \.canResume)
+        case .details: selectedTask != nil
+        case .remove: !selectedTasks.isEmpty
         default: true
         }
     }

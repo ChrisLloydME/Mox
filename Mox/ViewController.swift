@@ -196,10 +196,16 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
     }
 
     @objc private func removeSelected(_ sender: Any?) {
-        guard let task = selectedTask else { return }
+        let tasks = selectedTasks
+        guard !tasks.isEmpty else { return }
         let alert = NSAlert()
-        alert.messageText = "Remove “\(task.displayName)”?"
-        alert.informativeText = "The task will be removed from Mox."
+        if tasks.count == 1 {
+            alert.messageText = "Remove “\(tasks[0].displayName)”?"
+            alert.informativeText = "The task will be removed from Mox."
+        } else {
+            alert.messageText = "Remove \(tasks.count) Downloads?"
+            alert.informativeText = "The selected tasks will be removed from Mox."
+        }
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Remove")
         alert.addButton(withTitle: "Cancel")
@@ -208,7 +214,7 @@ final class ViewController: NSViewController, NSTableViewDataSource, NSTableView
         alert.beginSheetModal(for: view.window!) { [weak self] response in
             guard response == .alertFirstButtonReturn, let self else { return }
             Task {
-                do { try await self.taskStore.remove(task, deleteFiles: checkbox.state == .on) }
+                do { try await self.taskStore.remove(tasks, deleteFiles: checkbox.state == .on) }
                 catch { self.showError(error) }
             }
         }

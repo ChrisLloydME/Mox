@@ -103,21 +103,36 @@ final class TaskStore {
     }
 
     func remove(_ task: Aria2Task, deleteFiles: Bool) async throws {
+        try await remove([task], deleteFiles: deleteFiles)
+    }
+
+    func remove(_ selectedTasks: [Aria2Task], deleteFiles: Bool) async throws {
         let client = clientProvider()
-        let files = task.files
-        if ["active", "waiting", "paused"].contains(task.status) {
-            guard let client else { throw RPCError(code: -22, message: "The download engine is not ready.") }
-            try await client.remove(gid: task.gid)
-        }
-        if let client { try? await client.removeResult(gid: task.gid) }
-        tasks.removeAll { $0.gid == task.gid }
-        persistHistory()
-        if deleteFiles {
-            for path in deletionTargets(for: task, files: files) {
-                try FileManager.default.trashItem(at: path, resultingItemURL: nil)
+        var removedIDs: Set<String> = []
+        var firstError: Error?
+
+        for task in selectedTasks {
+            do {
+                if ["active", "waiting", "paused"].contains(task.status) {
+                    guard let client else { throw RPCError(code: -22, message: "The download engine is not ready.") }
+                    try await client.remove(gid: task.gid)
+                }
+                if let client { try? await client.removeResult(gid: task.gid) }
+                removedIDs.insert(task.gid)
+                if deleteFiles {
+                    for path in deletionTargets(for: task, files: task.files) {
+                        try FileManager.default.trashItem(at: path, resultingItemURL: nil)
+                    }
+                }
+            } catch {
+                firstError = firstError ?? error
             }
         }
+
+        tasks.removeAll { removedIDs.contains($0.gid) }
+        persistHistory()
         await refresh()
+        if let firstError { throw firstError }
     }
 
     private func deletionTargets(for task: Aria2Task, files: [Aria2File]) -> [URL] {
